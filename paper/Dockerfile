@@ -17,7 +17,7 @@ RUN apt-get update \
 RUN Rscript -e "\
         tinytex::tlmgr_install(c('orcidlink', 'pgf', 'thumbpdf', 'upquote', \
                                  'lmodern', 'natbib', 'fancyvrb', 'grfext', \
-                                 'epstopdf-pkg')); \
+                                 'epstopdf-pkg', 'booktabs', 'multirow')); \
         d <- file.path(tempdir(), 'jss-warmup'); \
         dir.create(d); \
         skel <- system.file('rmarkdown', 'templates', 'jss', 'skeleton', package = 'rticles'); \

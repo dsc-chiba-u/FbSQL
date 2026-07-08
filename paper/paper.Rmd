@@ -409,10 +409,266 @@ deliberately ordinary.
 
 # FbSQL Language Design
 
-<!-- TODO: fit_xxx / predict_xxx signatures; R formula as the model
-     specification; named arguments; the Minimum Atomic Relation question;
-     the repeated model-level column trade-off; the metadata jsonb column
-     and its meta_version-ed schema. -->
+This section specifies FbSQL as a language: what the user writes and what
+the system guarantees. How the reference implementation computes it —
+PL/R, testing, packaging — is deferred to the implementation section; here
+we describe only what was designed.
+
+## Design goals
+
+Four goals follow directly from the design principles. First, statistical
+modeling should be *written as* SQL rather than *called from* SQL: fitting
+and prediction are ordinary functions usable inside queries, views, and
+`CREATE TABLE AS`, not commands that leave the query language. Second, the
+formula is the first-class model-specification construct: the user states
+the statistical relationship, and the language defines everything
+operational that follows from it. Third, every modeling operation is
+relation-in/relation-out. Fourth — the contrapositive of the third — no
+model object is ever exposed: the fitted model is data, not a handle. The
+proof of concept binds these goals to two functions:
+
+```sql
+fbsql.fit_glm(
+    relation  text,                    -- SQL string defining the training relation
+    formula   text,                    -- R formula, e.g. 'churn_flag ~ age + gender'
+    family    text DEFAULT 'gaussian'  -- 'gaussian' | 'binomial'
+) RETURNS SETOF fbsql.glm_fit
+
+fbsql.predict_glm(
+    relation      text,                -- SQL string defining the relation to score
+    model         text,                -- SQL string returning a fitted-model relation
+    on_new_levels text DEFAULT 'error' -- 'error' | 'na'
+) RETURNS SETOF record
+```
+
+Both functions live in the `fbsql` schema; the examples in this paper
+assume `SET search_path TO fbsql, public;` and write them unqualified.
+Figure 1 gives the overview: every arrow in it is a relation.
+
+<!-- TODO(Figure 1, figures/system_overview.pdf, drawn for the paper):
+     data-flow diagram. Left: training relation (any SQL query) + formula +
+     family entering fit_glm; center: the 17-column model relation as a
+     genuine table; right: model relation + scoring relation entering
+     predict_glm, producing the scoring relation + <response>_predicted.
+     Annotate that no arrow carries a model object — every edge is a
+     relation. -->
+
+## Formula-based model specification
+
+Fitting the running example's churn model is a single query:
+
+```sql
+CREATE TEMPORARY TABLE logit_model AS
+SELECT *
+FROM fit_glm(
+    relation => $$
+        SELECT churn_flag, age, gender
+        FROM customer
+        WHERE DATE_PART('YEAR', created_at) = 2025
+    $$,
+    formula => 'churn_flag ~ age + gender',
+    family  => 'binomial');
+```
+
+The three arguments divide the specification cleanly. `relation` is a SQL
+string — dollar-quoted by convention — defining the training data. Because
+it may be any query, the modeling layer introduces no data-access
+sublanguage of its own: filtering, joining, and feature construction happen
+in ordinary SQL before the model ever sees the data, and anything SQL can
+express can be trained on. `formula` carries the statistical specification
+in the notation of @chambers1992statistical. We adopt it rather than invent
+a new syntax for three reasons: it has carried three decades of
+statistical-modeling practice, it is compact and declarative — it names a
+relationship, not a procedure — and it comes with precise, widely
+understood semantics. FbSQL fixes those semantics to be exactly those of
+R's `glm()` [@rcore]: character columns become factors with sorted levels,
+the first level is the reference under treatment contrasts, and rows with
+missing values are dropped as in `na.omit`. Fixing the semantics by
+reference to an existing system makes the specification *testable*:
+conformance of any implementation can be checked against R output, and the
+reference implementation's regression suite does exactly that. The formula
+is therefore not merely a string argument; it is the model-specification
+sublanguage of the DSL, and the derivation of the design matrix — encoding,
+contrasts, reference levels — is defined by the language rather than
+performed by the user. `family` names the error distribution, with the
+canonical link implied in the proof of concept (gaussian/identity,
+binomial/logit).
+
+The call style is part of the specification: FbSQL documents named-argument
+invocation (`relation => ...`, `formula => ...`) as its normative form.
+Statistical functions accumulate arguments, and named notation keeps calls
+order independent and self-documenting as the list grows — the argument-
+order half of the order-independence principle. Named notation is
+PostgreSQL and Oracle syntax rather than standard SQL, a point we return to
+in the *Discussion* section.
+
+## Relation representation of statistical models
+
+The central design decision of FbSQL is what `fit_glm()` returns. It does
+not return a handle to a model; it returns the model itself, as a relation
+of type `fbsql.glm_fit` with seventeen columns at two granularities:
+
+| Column | Grain | Meaning |
+|---|---|---|
+| `term` | term | design matrix column name, as in R's coefficient table |
+| `estimate` | term | coefficient |
+| `std_error` | term | standard error |
+| `statistic` | term | *t* value (gaussian) / *z* value (binomial) |
+| `p_value` | term | *p* value |
+| `conf_low_95`, `conf_high_95` | term | Wald 95% confidence bounds |
+| `family`, `link`, `formula` | model | the specification, echoed back |
+| `n_obs`, `n_used`, `n_dropped` | model | complete-case accounting |
+| `aic`, `deviance`, `null_deviance` | model | model-level fit measures |
+| `metadata` | model | JSONB; everything prediction needs (below) |
+
+One row corresponds to one design matrix column — `(Intercept)`, each
+numeric predictor, each non-reference factor level — so the churn model of
+Figure 2 is a four-row relation with terms `(Intercept)`, `age`,
+`genderM`, and `genderOther`. The term-level column names follow the
+vocabulary R users know from model-tidying conventions (`term`,
+`estimate`, `std_error`, `statistic`, `p_value`), adjusted to legal SQL
+identifiers, so the relation is immediately readable from both sides of
+the language boundary.
+
+<!-- TODO(Figure 2, figures/running_example.pdf, drawn for the paper):
+     the customer table split by DATE_PART('YEAR', created_at); the 2025
+     partition flowing into fit_glm and materializing as logit_model with
+     its four coefficient rows sketched; logit_model + the 2026 partition
+     flowing into predict_glm and yielding customer_id +
+     churn_flag_predicted. -->
+
+Returning a relation rather than an object has three consequences that
+motivate the design. First, *composition*: the model can be materialized
+(`CREATE TABLE AS`), stored, joined, and filtered like any other data —
+two refits can be compared by joining their relations on `term`, and a
+model-level quantity is one query away (`SELECT DISTINCT aic FROM
+logit_model`). Second, *inspectability*: there is nothing about the fitted
+model that `SELECT` cannot show, which contrasts with the serialized or
+host-language model representations reviewed in the *Related Work*
+section. Third, *implementation independence*: because the language defines
+the model as data with specified columns, any implementation — in any
+language — that produces and consumes this relation is a conforming one;
+the model representation is part of the language, not of the engine.
+
+Two granularities coexist in one relation, and this is deliberate.
+Model-level values (`aic`, `n_used`, `family`, ...) are repeated on every
+term row — a denormalization, since these columns depend on the model, not
+the term. The normalized alternative, splitting the output into coefficient
+and model-summary relations, was rejected because a multi-relation return
+gives up closure — the property the design exists to preserve. FbSQL
+accepts the redundancy and documents it as the explicit price of
+one-relation-out; the *Discussion* section weighs this trade-off.
+
+The same reasoning shapes the seventeenth column. A coefficient table alone
+is not a complete model representation: reconstructing predictions requires
+the factor levels seen at training time, the contrast scheme, the term
+structure, and the column types — information that R keeps inside its
+model object. FbSQL stores it in a `metadata` JSONB column, repeated on
+every row like the other model-level columns. For a model
+`y ~ x1 + gender` fitted on a numeric predictor and a three-level factor,
+the value is (exactly as produced by the reference implementation):
+
+```json
+{
+  "meta_version": 1,
+  "response": "y",
+  "term_labels": ["x1", "gender"],
+  "intercept": true,
+  "data_classes": {"y": "numeric", "x1": "numeric", "gender": "factor"},
+  "xlevels": {"gender": ["F", "M", "Other"]},
+  "contrasts": {"gender": "contr.treatment"},
+  "coef_terms": ["(Intercept)", "x1", "genderM", "genderOther"]
+}
+```
+
+The schema is versioned (`meta_version`) because the field layout is part
+of the language's API, and it never duplicates the flat columns (`family`,
+`formula`, the counters), keeping a single source for each fact. The one
+deliberate redundancy is `coef_terms`, the canonical set of coefficient
+terms: since row order is never guaranteed, a consumer matches coefficients
+by name and uses `coef_terms` to detect missing or duplicated rows.
+`xlevels` answers what no coefficient table can — the reference level `F`
+appears in no `term` — and enables the unseen-level checks of the next
+subsection. Storing this as JSONB is itself a trade-off: it is a departure
+from flat relational columns, but it keeps the output to one relation, and
+unlike an opaque model object it remains queryable — `metadata ->
+'xlevels'` is an ordinary SQL expression. With `metadata`, the relation is
+a *self-contained* model representation: nothing needed for prediction
+lives outside it.
+
+## Prediction interface
+
+Prediction consumes two relations and returns one:
+
+```sql
+SELECT customer_id, churn_flag_predicted
+FROM predict_glm(
+    relation => $$
+        SELECT customer_id, age, gender
+        FROM customer
+        WHERE DATE_PART('YEAR', created_at) = 2026
+    $$,
+    model => $$ SELECT * FROM logit_model $$
+) AS p(customer_id varchar, age integer, gender varchar,
+       churn_flag_predicted double precision);
+```
+
+Both inputs are relations on equal footing. The scoring data is a SQL
+string as in `fit_glm()`; the model is *also* a SQL string — any query
+returning a `glm_fit`-shaped relation qualifies, whether a materialized
+table, a view, or a filtered copy. The model is passed as data, not as a
+name resolved against system state: there is no registry, no deployment
+indirection, and no session dependence — scoring is a pure function of the
+two relations. The output is the scoring relation's rows with one appended
+column, `` `<response>_predicted` ``, named from the metadata (here
+`churn_flag_predicted`, a probability on the response scale). The output
+keeps the granularity of the input — one row in, one row out — and carries
+no row-order guarantee, per the order-independence principle; coefficients
+are matched to terms by name and validated against `coef_terms`, never by
+position. One ergonomic cost is visible in the example: because the output
+schema is "the input columns plus one derived column", it cannot be
+declared statically in PostgreSQL's type system, so `predict_glm()` returns
+`SETOF record` and the caller attaches a column definition list. We record
+this as a limitation of the current specification and discuss alternatives
+in the *Discussion* section.
+
+Missing and unseen values follow the NULL-semantics principle. A NULL
+predictor yields a NULL prediction — the row is kept, and NULL means
+unknown. Factor levels not seen at training time are governed by
+`on_new_levels`, an argument of `predict_glm()` rather than a property of
+the model: whether an unknown level should abort the query or produce an
+unknown prediction is a decision of the *consumer* of the predictions, not
+a fact about the fitted model, so it does not belong in `metadata`. The
+default `'error'` fails loudly, naming the offending level and the known
+levels from `xlevels`; `'na'` keeps the affected rows with NULL
+predictions, preserving output granularity. This design — detection from
+stored levels, an explicit caller-side policy, error as the default — is
+carried over from fbrglm [@fbrglm], an R package by the first author whose
+formula-based interface confronted the same unseen-level problem; FbSQL
+restates that answer in relational terms.
+
+## Generalization beyond GLM
+
+Nothing in the interface above is specific to generalized linear models.
+The pattern is a pair of conventions — `fit_xxx(relation, formula, ...)`
+returning a model relation, and `predict_xxx(relation, model)` returning
+the scored relation — plus one design question that each new estimator
+family must answer, which we call the *Minimum Atomic Relation* question:
+
+> What is the smallest relation that supports both the interpretation of a
+> fitted model and the reconstruction of its predictions?
+
+For GLMs the answer is the seventeen-column relation above: term-grain
+coefficient rows, repeated model-level columns, and the metadata needed to
+rebuild the design matrix. For tree ensembles — future `fit_rf()`,
+`fit_lgbm()`, `fit_xgb()` — the natural grain is not the coefficient but
+the split: a model relation whose rows are nodes (tree, node, split
+variable, threshold, leaf value), with ensemble-level columns and metadata
+playing the same roles as here. The interface conventions — named
+arguments, relation-valued model input, `` `<response>_predicted` ``
+output, caller-side policies for unseen data — carry over unchanged. The
+*Discussion* section sketches these designs; the point of this section is
+that the language, not the estimator, is the fixed part of FbSQL.
 
 # PostgreSQL Extension Implementation
 

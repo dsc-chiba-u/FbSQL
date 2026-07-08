@@ -6,6 +6,69 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: FbSQL Language Design 章の初稿執筆
+
+### Summary
+
+- `paper/paper.Rmd` の **FbSQL Language Design 章のみ**を本文化(論文の中核章。
+  他章は TODO のまま)。冒頭で「実装ではなく言語仕様の章」と宣言し、
+  PL/R・Docker・CI 等は Implementation 章へ委譲
+- 構成は指示どおり5小節: (4.1) Design goals(5原則→4目標+2関数のシグネチャ
+  提示、Figure 1 参照)、(4.2) Formula-based model specification(relation /
+  formula / family の分業、R formula 採用理由3点 + **セマンティクスを R の
+  glm() への参照で固定することで仕様が testable になる**という主張、
+  named argument を normative style として明記)、(4.3) Relation
+  representation(章の中心。17列仕様表、relation で返す3つの帰結 =
+  composition / inspectability / implementation independence、意図的
+  非正規化、metadata jsonb は**回帰テストの実測出力をそのまま**掲載し
+  meta_version・単一情報源・coef_terms の役割を明文化)、(4.4) Prediction
+  interface(2 relation 入力 → 1 relation 出力、モデルは名前解決ではなく
+  データとして渡す = 純関数、SETOF record の制約を明示、on_new_levels は
+  「予測消費者の決定であり学習時の事実ではない」から metadata でなく引数、
+  fbrglm からの設計継承を明記)、(4.5) Generalization beyond GLM
+  (Minimum Atomic Relation の問いを引用ブロックで再提示、木系の
+  node-grain relation を素描)
+- Figure 1(system overview)/ Figure 2(running example)を本文から参照し、
+  図の内容を TODO コメントで具体的に記述(図はまだ作らない)
+- `references.bib` に **fbrglm を1件追加**(CRAN 掲載を WebFetch で確認。
+  バージョンは CRAN 表示と手元メモが食い違うため note には記載せず)
+- **make jss の障害を1件解消**: 本文初の表(17列仕様表)で pandoc が
+  booktabs を要求し `booktabs.sty` 不足で LaTeX が停止 →
+  `paper/Dockerfile` の明示インストール一覧へ booktabs / multirow を追加し
+  イメージ再ビルドで解決(skeleton warm-up は表を含まないため検出できて
+  いなかった)
+
+### Changed Files
+
+- `paper/paper.Rmd`: Language Design 章の本文化
+- `paper/references.bib`: fbrglm エントリ追加
+- `paper/Dockerfile`: booktabs / multirow を LaTeX 焼き込みに追加
+
+### Validation
+
+- `make html` → 成功。未解決引用(`[@key]` / `???`)なし
+- `make jss` → 成功(booktabs 追加後。paper-jss.pdf 313KB、
+  Minimum Atomic Relation / fbrglm の本文反映を pdftotext で確認)
+- `make clean` → 成功、生成物が git に残らないことを確認
+
+### Known Issues
+
+- metadata JSONB の例は運用例(churn)ではなくテストフィクスチャ
+  (`y ~ x1 + gender`)の実測値。Running Example 章執筆時に churn モデルの
+  実測 metadata に差し替えるか検討(未検証値は載せない方針を維持)
+- fbrglm のバージョン表記が CRAN(0.0.1)と CLAUDE.md(0.1.0)で不一致 —
+  投稿前の文献検証時に要確認
+
+### Next Step
+
+- Implementation 章の初稿(PL/R による fit、R なし PL/pgSQL の predict、
+  pg_regress + R parity の検証規律、SPI-abort の教訓)
+
+Commit: `Draft language design section`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: Related Work 章の初稿執筆
 
 ### Summary
