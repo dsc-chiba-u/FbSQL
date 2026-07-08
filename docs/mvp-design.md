@@ -443,6 +443,25 @@ Running Example(`customer` テーブル)は論文・README のデモ用であり
 
 ---
 
+## 本体 MVP 到達点(2026-07-08)
+
+Running Example(customer churn の fit → predict)が pg_regress の統合テスト
+(`test/sql/running_example.sql`)として通り、本体 MVP は完了した。
+
+- **fit_glm()**: gaussian / binomial、数値・factor 説明変数、Complete Case Analysis
+  (n_obs / n_used / n_dropped)、Wald CI、17列出力(metadata jsonb 含む)、
+  エラー処理6種
+- **predict_glm()**: R 不使用(PL/pgSQL)、gaussian/identity と binomial/logit、
+  数値・factor 説明変数(treatment contrast を xlevels から再構築)、
+  `on_new_levels => 'error'|'na'`、NULL 説明変数 → NULL 予測
+- **検証**: 全数値が R(stats::glm / predict.glm)と4桁丸め一致。pg_regress 11本、
+  CI(Docker build + installcheck)グリーン
+- **未対応(意図的)**: interaction、custom contrasts、offset / weights、
+  prediction interval、class prediction、gaussian/binomial 以外の family、
+  非 canonical link、大規模・分散 GLM(Non-goal)
+
+---
+
 ## 次の実装ステップ(最小)
 
 1. `docker/Dockerfile`: PostgreSQL + PL/R + R の開発環境を立ち上げ、

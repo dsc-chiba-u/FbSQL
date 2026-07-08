@@ -6,6 +6,59 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: Running Example 統合テストと README 同期 — 本体 MVP 到達
+
+### Summary
+
+- 論文の Running Example(customer churn)を pg_regress 統合テスト化:
+  `customer` テーブル(customer_id / created_at / age / gender / churn_flag)、
+  2025年データで `churn_flag ~ age + gender` を binomial fit → 2026年データへ predict
+- `churn_flag_predicted` が customer_id 粒度で返り、NULL age → NULL 予測、
+  novel level('Nonbinary')は既定でエラー・`on_new_levels => 'na'` で該当行のみ NULL、
+  をすべて1テストで検証
+- 係数・予測確率とも R(glm / predict type="response")と4桁丸めで一致
+- README を全面整理: PostgreSQL Extension であり R パッケージではないことの明示、
+  Running Example の掲載、対応済み/未対応の正確なリスト(大規模・分散 GLM は
+  スコープ外であることも明記)
+- `docs/mvp-design.md` に「本体 MVP 到達点」セクションを追加
+- 機能追加なし(統合テスト + 文書同期のみ)
+
+### Changed Files
+
+- `test/sql/running_example.sql` / expected: 新規(fit 係数確認 + predict 3パターン)
+- `Makefile`: REGRESS に running_example 追加
+- `scripts/parity_reference.R`: running example 参照セクション追加
+- `README.md`: 全面整理(Running Example、Supported today / Not yet supported)
+- `docs/mvp-design.md`: 本体 MVP 到達点セクション追加
+- `TODO.md`: Running Example 統合テスト完了を記録
+
+### Validation
+
+- fit 係数(binomial, n=12): `(Intercept) −12.1071±7.1895`, `age 0.2981±0.1669`,
+  `genderM −0.4305`, `genderOther −0.7049` — R と一致、分離・収束警告なし
+- 2026年予測: c101(30, F)→ **0.0406**、c102(55, M)→ **0.9794**、
+  c103(42, Other)→ **0.4280**、c104(age NULL)→ **NULL** — R と一致
+- c105(gender 'Nonbinary'): 既定でエラー(既知水準一覧付き)、`'na'` で該当行のみ NULL
+- `make installcheck` → **All 11 tests passed**
+- `scripts/docker-installcheck.sh`(CI同一経路)→ 成功
+
+### Known Issues
+
+- 本体 MVP として意図的に未対応: interaction、custom contrasts、offset / weights、
+  prediction interval、class prediction、他 family / 非 canonical link、
+  大規模・分散 GLM(Non-goal)
+
+### Next Step
+
+- 本体 MVP 完了につき、次は公開・論文系へ: (1) META.json / Changes 整備(PGXN 準備)、
+  (2) FbSQL-experiments リポジトリ着手(関連システム比較・論文用素材)、
+  (3) interaction 対応、の優先順位をメンテナと相談
+
+Commit: `Add running example integration test`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: predict_glm() 第3段階 — factor 対応と on_new_levels
 
 ### Summary

@@ -141,3 +141,30 @@ print(cbind(t_new_bf,
             y_predicted = round(stats::predict(fit_pbf,
                                                newdata = t_new_bf,
                                                type = "response"), 4)))
+
+# ---- running example reference (test/sql/running_example.sql) ----
+customer_2025 <- data.frame(
+    churn_flag = c(FALSE, FALSE, TRUE, TRUE, FALSE, TRUE,
+                   FALSE, TRUE, FALSE, FALSE, TRUE, TRUE),
+    age        = c(25, 34, 48, 52, 28, 39, 45, 58, 23, 37, 49, 61),
+    gender     = c("F", "F", "F", "F", "M", "M", "M", "M",
+                   "Other", "Other", "Other", "Other")
+)
+customer_2026 <- data.frame(
+    customer_id = c("c101", "c102", "c103", "c104"),
+    age         = c(30, 55, 42, NA),
+    gender      = c("F", "M", "Other", "F")
+)
+
+cat("\n== running example: churn_flag ~ age + gender (binomial) ==\n")
+fit_re <- stats::glm(churn_flag ~ age + gender, data = customer_2025,
+                     family = stats::binomial())
+coefs_re <- summary(fit_re)$coefficients
+print(data.frame(term = rownames(coefs_re),
+                 estimate = round(coefs_re[, 1], 4),
+                 std_error = round(coefs_re[, 2], 4),
+                 row.names = NULL))
+print(cbind(customer_2026,
+            churn_flag_predicted = round(stats::predict(fit_re,
+                                                        newdata = customer_2026,
+                                                        type = "response"), 4)))

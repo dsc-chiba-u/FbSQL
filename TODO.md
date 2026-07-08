@@ -31,6 +31,9 @@
       `on_new_levels => 'error'|'na'` 引数、novel level 検出)
       — 2026-07-08 完了: gaussian / binomial とも数値・factor 混在で R と一致。
       これで Running Example(fit → predict)がコア機能として一通り動作
+- [x] Running Example 統合テスト(`running_example.sql`: customer テーブル、2025 fit →
+      2026 predict、novel level の error/na)+ README の実装同期
+      — 2026-07-08 完了: **本体 MVP 到達**(`docs/mvp-design.md` の到達点セクション参照)
 - [ ] `predict_glm()` の interaction(`y ~ x * gender`)対応(fit は既に通るため、
       解釈不能 term の明示エラーで防御中)
 - [ ] `on_new_levels => 'error'` の novel 検出プローブで relation が複数回実行される
