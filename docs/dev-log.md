@@ -6,6 +6,61 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: Running Example 章の初稿執筆
+
+### Summary
+
+- `paper/paper.Rmd` の **Running Example 章のみ**を本文化(利用者視点の
+  ウォークスルー。Implementation の内容には立ち入らず、他章は TODO のまま)
+- 冒頭で「この例は擬似コードではなく `test/sql/running_example.sql` として
+  回帰テストに同梱され、全数値は R と4桁一致で検証済み」と宣言し、
+  **掲載した数値・出力・エラーメッセージはすべて実測値**
+  (係数表 = expected 出力、予測値 = parity CSV、novel level エラー文言 =
+  expected 出力、xlevels = metadata テスト・エラー文言と整合)
+- 構成は指示どおり5小節: (6.1) Dataset(customer の5列と 2025学習→2026予測
+  シナリオ、c104 NULL age / c105 unseen level を「production scoring の現実」
+  として導入。Table 2 は TODO コメントのみ)、(6.2) Model fitting(1文の SQL、
+  relation / formula / family の3引数に集中、metadata は軽く言及)、
+  (6.3) Prediction(モデルを**データとして**渡す点を強調、c104 = NULL 予測、
+  c105 = 既定 error の実エラー文言 → 'na' で当該行のみ NULL。
+  「unseen level の扱いは caller の決定」という設計思想を簡潔に)、
+  (6.4) Inspecting the fitted model(FbSQLらしさ: DISTINCT で model 指標、
+  metadata -> 'xlevels' で参照水準 F が見える、term での JOIN による
+  モデル比較、「serialize も method call も system state もない」)、
+  (6.5) Summary(4文の SQL で完結 / 実装に非依存 = 言語境界が機能している
+  証拠、として Implementation 章への橋渡し)
+- Figure 2 をこの章から参照(図の内容は TODO コメント。作図せず)。
+  query 出力は Table 資産ではなく fenced block(psql 風)で掲載
+- 文献追加なし
+
+### Changed Files
+
+- `paper/paper.Rmd`: Running Example 章の本文化のみ
+
+### Validation
+
+- `make html` → 成功。未解決引用なし
+- `make jss` → 成功(c105 / Nonbinary の本文反映を pdftotext で確認)
+- `make clean` → 成功、生成物が git に残らないことを確認
+
+### Known Issues
+
+- AIC 等の実数値は parity CSV に含まれないため、6.4 では**数値を出さず**
+  クエリのみ提示(未検証値は載せない方針)。必要になれば experiments 側で
+  実測してから差し替える
+- 6.4 の JOIN 例(logit_model_2026)は説明用のクエリパターンであり
+  出力は掲載していない(実在しないテーブルのため)
+
+### Next Step
+
+- Implementation 章の初稿(PL/R fit、R なし PL/pgSQL predict、pg_regress +
+  R parity の検証規律、SPI-abort の教訓)
+
+Commit: `Draft running example section`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: FbSQL Language Design 章の初稿執筆
 
 ### Summary
