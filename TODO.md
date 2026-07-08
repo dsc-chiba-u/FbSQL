@@ -2,7 +2,7 @@
 
 意図的に延期した機能と未決事項の backlog。MVP のスコープは `docs/mvp-design.md` を参照。
 
-## MVP(次に着手する順)
+## MVP(2026-07-08 全タスク完了)
 
 - [x] `docker/Dockerfile`: PostgreSQL + PL/R + R の開発環境(`CREATE EXTENSION plr` が通ること)
       — 2026-07-08 検証済み: PostgreSQL 16.14 + PL/R 8.4.8.6 + R 4.2.2(`docs/development.md`)
@@ -20,6 +20,9 @@
       — `docker-build.yml` が build + installcheck を実行する形で実現済み(別ファイル不要)
 
 ## MVP 後(実装順未定)
+
+- [ ] PL/R エラーの1行目(`R interpreter expression evaluation error`)を整形できるか調査
+      (メッセージ本体は DETAIL に出ており実害は小さい。優先度低)
 
 - [ ] `predict_glm()` — metadata 格納形式(JSONB 案A)の確定が先行条件(下記「未決事項」)
 - [ ] family 追加(poisson → Gamma → その先は論文スコープと相談)

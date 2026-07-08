@@ -58,9 +58,28 @@ AS $fit_glm$
                   gaussian = stats::gaussian(),
                   binomial = stats::binomial())
 
+    fml <- tryCatch(stats::as.formula(formula),
+                    error = function(e) pg.throwerror(sprintf(
+                        "fit_glm: invalid formula: '%s'", formula)))
+
+    ## Do NOT wrap pg.spi.exec in tryCatch: a failed SPI call aborts the
+    ## transaction, and raising a fresh error from an R handler on top of
+    ## that state crashes the backend. Letting the native PostgreSQL error
+    ## propagate is both safe and the clearest message (e.g. relation
+    ## "no_such_table" does not exist).
     df <- pg.spi.exec(relation)
     if (!is.data.frame(df) || nrow(df) == 0L)
         pg.throwerror("fit_glm: relation returned no rows")
+
+    ## Fail fast with the offending names when the formula references
+    ## columns the relation does not provide ('.' expands to all columns,
+    ## so it is exempt).
+    missing_cols <- setdiff(setdiff(all.vars(fml), "."), names(df))
+    if (length(missing_cols) > 0L)
+        pg.throwerror(sprintf(
+            "fit_glm: formula references column(s) not in relation: %s (available: %s)",
+            paste(missing_cols, collapse = ", "),
+            paste(names(df), collapse = ", ")))
 
     ## PL/R hands text columns over as character vectors and R >= 4 no
     ## longer auto-factors them in data.frame(). glm()'s model.frame would
@@ -75,7 +94,12 @@ AS $fit_glm$
     ## (na.omit) = Complete Case Analysis; the counts below make the
     ## dropped rows explicit instead of silent.
     n_obs <- nrow(df)
-    fit <- stats::glm(stats::as.formula(formula), data = df, family = fam)
+    ## Prefix R-level fitting errors (non-convergence, invalid response for
+    ## the family, ...) with the function name; the R message itself is kept
+    ## because it is usually the most informative part.
+    fit <- tryCatch(stats::glm(fml, data = df, family = fam),
+                    error = function(e) pg.throwerror(sprintf(
+                        "fit_glm: %s", conditionMessage(e))))
     n_used <- stats::nobs(fit)
 
     coefs <- summary(fit)$coefficients

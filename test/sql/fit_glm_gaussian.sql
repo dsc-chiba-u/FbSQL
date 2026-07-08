@@ -40,9 +40,3 @@ FROM fbsql.fit_glm(
     relation => $$ SELECT y, x1 FROM t_gaussian $$,
     formula  => 'y ~ x1')
 ORDER BY term;
-
--- Unsupported family must fail with a clear error.
-SELECT * FROM fbsql.fit_glm(
-    relation => $$ SELECT y, x1 FROM t_gaussian $$,
-    formula  => 'y ~ x1',
-    family   => 'poisson');

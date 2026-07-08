@@ -139,7 +139,7 @@ LANGUAGE plr;
 | 信頼区間 | **Wald 型(`confint.default()`、正規分位点)** | R 既定の `confint()` は profile likelihood で計算コストが高く数値再現も難しい。MVP は Wald に固定し、論文・ドキュメントに明記。profile は TODO |
 | `statistic` 列 | gaussian は t 値、binomial は z 値(R の `summary.glm` と同じ) | R との一致検証を最優先。列は1本とし、意味は family で決まることをドキュメント化 |
 | link | MVP は family の canonical link に固定(gaussian=identity, binomial=logit) | `family => 'binomial(link=probit)'` 等の拡張は TODO |
-| エラー処理 | formula の列が relation に存在しない・family 不正・収束失敗は PostgreSQL エラーとして送出 | 黙って NULL や空 relation を返さない |
+| エラー処理(2026-07-08 実装確定) | family 不正・formula parse 失敗・formula が参照する列の不存在・0行 relation・R の fitting エラーは、`fit_glm:` 接頭辞付きの `pg.throwerror` で送出。**`pg.spi.exec` だけは tryCatch しない**: SPI エラーでトランザクションが abort した状態の上から R ハンドラでエラーを投げるとバックエンドがクラッシュするため、壊れた relation SQL は PostgreSQL ネイティブのエラーをそのまま伝播させる | 黙って NULL や空 relation を返さない。R 由来のメッセージ(例: 'y values must be 0 <= y <= 1')は情報量が多いので接頭辞付きで保持 |
 | factor 処理(2026-07-08 確定) | 文字列列は `fit_glm()` 内で**明示的に** `factor()` へ変換する。levels は `factor()` のソート順、第1水準が参照水準(treatment contrast、R の `glm()` 既定と同じ) | PL/R は text を character で渡し、R >= 4 は自動 factor 化しない。`model.frame` の暗黙変換に任せず明示変換することで、挙動を決定的にし、将来の `predict_glm()` metadata(xlevels)がこの規約に依存できるようにする |
 
 ---

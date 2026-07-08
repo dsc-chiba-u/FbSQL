@@ -6,6 +6,59 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: fit_glm() MVP の品質固め(エラー処理・テスト整理・文書同期)
+
+### Summary
+
+- エラー処理を強化: formula parse 失敗、formula が参照する列の不存在(利用可能列の
+  一覧付き)、R の fitting エラーを `fit_glm:` 接頭辞付きの明瞭なメッセージ化
+- **重要な発見**: `pg.spi.exec` を tryCatch で捕捉してから `pg.throwerror` を呼ぶと
+  バックエンドがクラッシュする(SPI エラーで abort したトランザクション上で R ハンドラ
+  からエラーを投げるため)。壊れた relation SQL は PostgreSQL ネイティブエラーを
+  そのまま伝播させる方式に確定し、設計判断としてコード・設計書に明記
+- エラーテストを `fit_glm_errors.sql` に集約(6ケース)。gaussian テストからエラー
+  ケースを移動
+- README を現在の実装に同期(fbsql.fit_glm が正式API、対応family、predict_glm 未実装、
+  モデルオブジェクト非露出、出力列一覧)
+- MVP 全タスク完了を TODO.md に明記
+
+### Changed Files
+
+- `sql/fbsql--0.1.0.sql`: formula parse / 列存在チェック / glm エラーの tryCatch 化、
+  pg.spi.exec を tryCatch しない理由のコメント
+- `test/sql/fit_glm_errors.sql` / expected: 新規(6エラーケース)
+- `test/sql/fit_glm_gaussian.sql` / expected: エラーケースを errors テストへ移動
+- `Makefile`: REGRESS に fit_glm_errors 追加
+- `README.md`: 実装と同期した全面改訂
+- `docs/mvp-design.md`: エラー処理の決定事項を実装確定版に更新(クラッシュ回避の設計判断含む)
+- `TODO.md`: MVP 完了の明記、PL/R エラー1行目整形の調査項目を追加
+
+### Validation
+
+- エラー6ケースすべて確認: poisson(未対応family)/ 'not a formula'(parse失敗)/
+  missing_col(列不存在、available: y, x 付き)/ no_such_table(PGネイティブエラー伝播)/
+  0行 relation / binomial に範囲外応答(R メッセージ保持: 'y values must be 0 <= y <= 1')
+- クラッシュ再現 → 修正 → 全ケースでクラッシュなしを確認
+- `make installcheck` → **All 6 tests passed**(version / gaussian / binomial / nulls /
+  factor / errors)
+- `scripts/docker-installcheck.sh`(CI同一経路)→ 成功
+
+### Known Issues
+
+- PL/R エラーの1行目は常に `R interpreter expression evaluation error` で、本体は
+  DETAIL 行に出る(TODO に調査項目として記録、優先度低)
+- 壊れた relation SQL のエラーは pg.spi.exec 由来の2行 DETAIL になる(内容は明瞭)
+
+### Next Step
+
+- `predict_glm()` の metadata 設計確定(JSONB 案A の具体スキーマ:
+  xlevels / contrasts / terms / 列型情報)— 実装前に設計文書の更新として1回分
+
+Commit: `Harden fit_glm MVP error handling`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: fit_glm() の factor(カテゴリカル説明変数)対応
 
 ### Summary
