@@ -23,7 +23,11 @@
 
 - [x] `fit_glm()` に `metadata jsonb` 列(17列目)を実装 + `fit_glm_metadata` テスト新設
       — 2026-07-08 完了: meta_version 1 の全フィールド、既存テストは expected 無変更で通過
-- [ ] `predict_glm()` MVP(数値のみ → factor 対応の順。前提の metadata 列は実装済み)
+- [x] `predict_glm()` MVP 第1段階(数値のみ・gaussian・PL/pgSQL 実装)
+      — 2026-07-08 完了: SETOF record + 呼び出し側列定義。R の predict.glm() と一致
+- [ ] `predict_glm()` 第2段階: binomial(逆リンク logit)対応
+- [ ] `predict_glm()` 第3段階: factor 対応(xlevels / contrasts の消費、
+      `on_new_levels => 'error'|'na'` 引数、novel level 検出)
 - [ ] PL/R エラーの1行目(`R interpreter expression evaluation error`)を整形できるか調査
       (メッセージ本体は DETAIL に出ており実害は小さい。優先度低)
 - [ ] family 追加(poisson → Gamma → その先は論文スコープと相談)

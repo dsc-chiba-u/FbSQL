@@ -41,10 +41,26 @@ FROM fbsql.fit_glm(
 - The R model object never leaves the function; results are verified against
   R's `stats::glm()` in the regression tests (`scripts/parity_reference.R`).
 
+`fbsql.predict_glm()` scores a relation from a fitted model relation — no R
+involved: predictions are computed in PL/pgSQL from the coefficients and
+`metadata` alone. Currently numeric predictors + gaussian family only. It
+returns `SETOF record`, so attach a column definition list:
+
+```sql
+SELECT *
+FROM fbsql.predict_glm(
+  relation => $$ SELECT id, x FROM t_new $$,
+  model    => $$ SELECT * FROM t_model $$
+) AS p(id integer, x double precision, y_predicted double precision);
+```
+
+The output is the input relation's rows plus `<response>_predicted`; rows with
+NULL predictors get a NULL prediction.
+
 ## Not yet implemented
 
-- `predict_glm()` — the fit side is ready (the `metadata` column above); the
-  prediction function itself is next. See `docs/mvp-design.md` for the design.
+- `predict_glm()` for binomial models and factor predictors (including the
+  planned `on_new_levels` policy for unseen factor levels).
 - Other families, non-canonical links, `weights` / `offset`.
 
 ## Development

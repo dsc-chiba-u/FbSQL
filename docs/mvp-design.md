@@ -317,7 +317,43 @@ treatment contrast。**この規約こそが predict 時に再現すべき情報
 - **スキーマ安定性**: JSONB 内部スキーマは API の一部になる。`meta_version` で管理し、
   論文にもスキーマを明記する。
 
-#### 実装(2026-07-08 完了)
+### predict_glm() MVP 第1段階(2026-07-08 実装)
+
+**スコープ**: 数値説明変数のみ・gaussian のみ・intercept あり。binomial / factor /
+novel level / `on_new_levels` は次段階。
+
+**API**: `fbsql.predict_glm(relation text, model text)`。`relation` は予測対象の SQL
+文字列、`model` は `fit_glm()` の出力リレーションを返す SQL 文字列。
+
+**実装言語は PL/pgSQL(R 不使用)**。予測は係数リレーション(`term` / `estimate`)と
+`metadata`(`coef_terms` / `intercept` / `data_classes` / `response`)だけから
+`intercept + Σ coef_j · x_j` を動的 SQL で計算する。リレーションがモデル表現として
+完結していることの実証であり、CLAUDE.md の実装戦略(将来 SQL / C 実装へ置換可能)と
+一致する。行順序に依存しないよう係数は `term` 名で照合し、`coef_terms` と行数・
+完全性を突き合わせて欠落・重複を検出する。動的 SQL は `%I` / `%L` で必ずクォートする。
+
+**出力形式の決定**: `RETURNS SETOF record` を採用し、呼び出し側が列定義リストを書く:
+
+```sql
+SELECT * FROM fbsql.predict_glm(
+    relation => $$ SELECT id, x FROM t_new $$,
+    model    => $$ SELECT * FROM t_model $$
+) AS p(id integer, x double precision, y_predicted double precision);
+```
+
+- 出力は入力リレーションの全列 + `<response>_predicted`(metadata の `response` から
+  命名)。「予測対象と同じ粒度のリレーションを返す」という設計原則を満たす。
+- PostgreSQL の関数機構では「入力リレーションの全列 + 動的に決まる1列」を静的な型と
+  して宣言できないため、record + 呼び出し側列定義が最も標準的で安定な手段
+  (第一候補を採用)。
+- 第二候補(`row_id, predicted` の固定出力)は、粒度は同じでも入力列を失い
+  「同じ粒度のリレーション」の意味論を実質的に崩すため不採用。
+- 列定義リストの記述を不要にする方法(C 実装、ビュー生成など)は将来課題として
+  Discussion で扱う。
+- NULL を含む行の予測値は NULL(SQL の NULL セマンティクス。R の `predict()` が
+  NA を返すことと一致)。
+
+### fit_glm() metadata 列の実装(2026-07-08 完了)
 
 `fbsql.glm_fit` に `metadata` 列を追加(17列)し、`fit_glm()` で全フィールドを一括実装。
 `fit_glm_metadata` テストを新設(jsonb_pretty で全体 + `->` / `->>` で個別フィールド、

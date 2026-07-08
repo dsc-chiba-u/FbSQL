@@ -6,6 +6,61 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: predict_glm() MVP 第1段階(数値・gaussian・R不使用)
+
+### Summary
+
+- `fbsql.predict_glm(relation, model)` を **PL/pgSQL で実装(R 不使用)**。係数
+  リレーション + metadata だけから `intercept + Σ coef·x` を動的 SQL で計算し、
+  リレーションがモデル表現として完結していることを実証
+- 出力形式は **`SETOF record` + 呼び出し側の列定義リスト**(第一候補)を採用。
+  入力全列 + `<response>_predicted` を返し「同じ粒度のリレーション」を維持。
+  第二候補(row_id固定)は入力列を失い意味論を崩すため不採用 — 判断理由を
+  mvp-design.md に明記
+- 行順序非依存: 係数は term 名で照合し、metadata.coef_terms と行数・完全性を検証
+- NULL 説明変数の行は予測値 NULL(R の predict() の NA と一致)
+- 動的 SQL は %I / %L でクォート(細工された model リレーションからの注入も防止)
+- PL/pgSQL のためエラーは1行目から `predict_glm:` で始まる(PL/R のような
+  ラッパー行なし)
+
+### Changed Files
+
+- `sql/fbsql--0.1.0.sql`: `fbsql.predict_glm()` 追加(PL/pgSQL、検証6種:
+  引数・metadata有無・meta_version・family・data_classes・係数完全性)
+- `test/sql/predict_glm_numeric.sql` / expected: 新規(fit→predict の一連 +
+  NULL行 + binomial/factor モデルへの明瞭なエラー)
+- `Makefile`: REGRESS に predict_glm_numeric 追加
+- `scripts/parity_reference.R`: predict 参照セクション追加
+- `README.md`: predict_glm の現状(numeric gaussian MVP、SETOF record 記法)を明記
+- `docs/mvp-design.md`: predict_glm 第1段階の設計・出力形式の判断を追記
+- `TODO.md`: 第1段階完了、第2段階(binomial)・第3段階(factor)に分割
+
+### Validation
+
+- t_train(5行、y = 1 + x)→ t_new の予測: id=1(x=1.5)→ **2.5**、id=2(x=3.5)→
+  **4.5**、id=3(x=NULL)→ **NULL** — R の `predict(glm(...), newdata)` と一致
+- binomial モデル → `predict_glm: family 'binomial' is not supported yet`
+- factor モデル → `predict_glm: only numeric predictors are supported yet`
+- `make installcheck` → **All 8 tests passed**(既存7 + predict_glm_numeric)
+- `scripts/docker-installcheck.sh`(CI同一経路)→ 成功
+
+### Known Issues
+
+- SETOF record のため呼び出し側に列定義リストが必須。記述を不要にする手段
+  (C 実装・ビュー生成等)は将来課題として論文 Discussion で扱う
+- 予測対象 relation に必要列がない場合は PostgreSQL ネイティブの
+  「column does not exist」エラーになる(明瞭なので MVP はそのまま)
+
+### Next Step
+
+- `predict_glm()` 第2段階: binomial 対応(logit の逆リンク `1/(1+exp(-lp))` を
+  SQL 式に追加、出力は確率)
+
+Commit: `Add numeric predict_glm MVP`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: fit_glm() に metadata jsonb 列を実装(17列目)
 
 ### Summary

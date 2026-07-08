@@ -73,3 +73,15 @@ print(reference_table(t_factor, y ~ gender, "gaussian"), width = 200)
 cat("\n== t_nulls: y ~ x1 + x2, gaussian (Complete Case Analysis) ==\n")
 print(reference_table(t_nulls, y ~ x1 + x2, "gaussian")[,
     c("term", "estimate", "std_error", "n_obs", "n_used", "n_dropped")])
+
+# ---- predict_glm() stage 1 reference (test/sql/predict_glm_numeric.sql) ----
+t_train <- data.frame(
+    y = c(1.0, 2.0, 3.0, 4.0, 5.0),
+    x = c(0.0, 1.0, 2.0, 3.0, 4.0)
+)
+t_new <- data.frame(id = c(1L, 2L, 3L), x = c(1.5, 3.5, NA))
+
+cat("\n== predict: y ~ x on t_new (NA row must predict NA) ==\n")
+fit_p <- stats::glm(y ~ x, data = t_train, family = stats::gaussian())
+print(cbind(t_new,
+            y_predicted = round(stats::predict(fit_p, newdata = t_new), 4)))

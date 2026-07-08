@@ -163,3 +163,88 @@ AS $fit_glm$
         stringsAsFactors = FALSE
     )
 $fit_glm$;
+
+-- predict_glm() MVP (stage 1): numeric predictors, gaussian family only.
+-- Deliberately implemented WITHOUT R: predictions are computed from the
+-- coefficient relation plus its metadata column alone, demonstrating that
+-- the relation really is a complete model representation.
+--
+-- Returns SETOF record, so callers attach a column definition list:
+--   SELECT * FROM fbsql.predict_glm(...) AS p(id int, x float8,
+--                                             y_predicted float8);
+-- The output is the input relation's rows with one appended column named
+-- <response>_predicted. Rows whose predictors contain NULL get a NULL
+-- prediction (SQL NULL semantics; matches R's predict() returning NA).
+CREATE FUNCTION fbsql.predict_glm(
+    relation text,
+    model    text
+) RETURNS SETOF record
+LANGUAGE plpgsql
+AS $predict_glm$
+DECLARE
+    meta   jsonb;
+    fam    text;
+    coefs  jsonb;
+    n_rows bigint;
+    expr   text := '0';
+    term   text;
+BEGIN
+    IF relation IS NULL OR relation = '' THEN
+        RAISE EXCEPTION 'predict_glm: relation must be a non-empty SQL string';
+    END IF;
+    IF model IS NULL OR model = '' THEN
+        RAISE EXCEPTION 'predict_glm: model must be a non-empty SQL string';
+    END IF;
+
+    EXECUTE format('SELECT m.metadata, m.family FROM (%s) m LIMIT 1', model)
+        INTO meta, fam;
+    IF meta IS NULL THEN
+        RAISE EXCEPTION 'predict_glm: model relation returned no rows or has NULL metadata';
+    END IF;
+    IF (meta ->> 'meta_version')::int IS DISTINCT FROM 1 THEN
+        RAISE EXCEPTION 'predict_glm: unsupported metadata version: %',
+            meta ->> 'meta_version';
+    END IF;
+    IF fam IS DISTINCT FROM 'gaussian' THEN
+        RAISE EXCEPTION 'predict_glm: family ''%'' is not supported yet (supported families: gaussian)',
+            fam;
+    END IF;
+    -- R dataClasses maps every numeric SQL column to 'numeric', so any
+    -- other class (factor, logical, ...) is outside this MVP scope.
+    IF EXISTS (SELECT 1 FROM jsonb_each_text(meta -> 'data_classes') dc
+               WHERE dc.value <> 'numeric') THEN
+        RAISE EXCEPTION 'predict_glm: only numeric predictors are supported yet (data_classes: %)',
+            meta -> 'data_classes';
+    END IF;
+
+    EXECUTE format('SELECT jsonb_object_agg(m.term, m.estimate), count(*) FROM (%s) m',
+                   model)
+        INTO coefs, n_rows;
+    -- The model relation has no guaranteed row order (order independence),
+    -- so coefficients are matched by term name and checked for completeness
+    -- against metadata.coef_terms.
+    IF n_rows IS DISTINCT FROM jsonb_array_length(meta -> 'coef_terms') THEN
+        RAISE EXCEPTION 'predict_glm: model relation has % coefficient rows but metadata.coef_terms lists %',
+            n_rows, jsonb_array_length(meta -> 'coef_terms');
+    END IF;
+
+    FOR term IN
+        SELECT t.value FROM jsonb_array_elements_text(meta -> 'coef_terms') t
+    LOOP
+        IF coefs ->> term IS NULL THEN
+            RAISE EXCEPTION 'predict_glm: coefficient row for term ''%'' is missing from the model relation',
+                term;
+        END IF;
+        IF term = '(Intercept)' THEN
+            expr := expr || format(' + (%L)::double precision', coefs ->> term);
+        ELSE
+            expr := expr || format(' + (%L)::double precision * r.%I',
+                                   coefs ->> term, term);
+        END IF;
+    END LOOP;
+
+    RETURN QUERY EXECUTE format(
+        'SELECT r.*, (%s)::double precision AS %I FROM (%s) r',
+        expr, (meta ->> 'response') || '_predicted', relation);
+END;
+$predict_glm$;
