@@ -62,6 +62,15 @@ AS $fit_glm$
     if (!is.data.frame(df) || nrow(df) == 0L)
         pg.throwerror("fit_glm: relation returned no rows")
 
+    ## PL/R hands text columns over as character vectors and R >= 4 no
+    ## longer auto-factors them in data.frame(). glm()'s model.frame would
+    ## convert them implicitly, but we convert explicitly so the behavior
+    ## is deterministic and documented: levels are factor()'s sorted unique
+    ## values, the first level is the reference (treatment contrasts, as in
+    ## stats::glm() defaults). The future predict_glm() metadata (xlevels)
+    ## will rely on exactly this convention.
+    df[] <- lapply(df, function(col) if (is.character(col)) factor(col) else col)
+
     ## Rows containing NULL are dropped by glm()'s default na.action
     ## (na.omit) = Complete Case Analysis; the counts below make the
     ## dropped rows explicit instead of silent.

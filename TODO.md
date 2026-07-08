@@ -14,8 +14,10 @@
       — 2026-07-08 完了: logit リンク、z値・AIC 含め R と一致。boolean 応答も検証
 - [x] NULL / Complete Case テスト(`t_nulls`: n_obs / n_used / n_dropped の検証)
       — 2026-07-08 完了: 15行中3行除外(n_obs=15, n_used=12, n_dropped=3)を回帰テスト化
-- [ ] factor テスト(`t_factor`: term 名・参照水準が R の既定と一致)
-- [ ] `.github/workflows/regress.yml`(Docker イメージ上で installcheck)
+- [x] factor テスト(`t_factor`: term 名・参照水準が R の既定と一致)
+      — 2026-07-08 完了: genderM / genderOther、参照水準 F、R と全列一致
+- [x] `.github/workflows/regress.yml`(Docker イメージ上で installcheck)
+      — `docker-build.yml` が build + installcheck を実行する形で実現済み(別ファイル不要)
 
 ## MVP 後(実装順未定)
 

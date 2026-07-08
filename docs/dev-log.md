@@ -6,6 +6,54 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: fit_glm() の factor(カテゴリカル説明変数)対応
+
+### Summary
+
+- 文字列列を含む relation で `fit_glm()` が動くようにした(`y ~ gender`)
+- PL/R は text 列を character で渡し R >= 4 は自動 factor 化しないため、`fit_glm()` 内で
+  **明示的に** `factor()` 変換する方針を採用(levels ソート順・第1水準参照・treatment
+  contrast = R の `glm()` 既定と一致)
+- term 名(`genderM`, `genderOther`)・係数・SE・統計量・p値すべて R と丸め一致
+- テストの `ORDER BY term` に `COLLATE "C"` を付与(DB ロケール依存の行順を排除)
+- MVP タスク完了: これで gaussian / binomial / NULL / factor + CI が揃った
+
+### Changed Files
+
+- `sql/fbsql--0.1.0.sql`: character 列の明示的 factor 変換を追加(設計判断コメント付き)
+- `test/sql/fit_glm_factor.sql` / expected: 新規(6行・3水準の t_factor)
+- `Makefile`: REGRESS に fit_glm_factor 追加
+- `scripts/parity_reference.R`: t_factor セクション追加
+- `docs/mvp-design.md`: factor 処理の決定事項を §2 に追加、§4 に「fit の factor 規約が
+  predict metadata(xlevels 等)の必要性を裏付けた」ことを追記
+- `TODO.md`: t_factor と CI(installcheck)タスクを完了化
+
+### Validation
+
+- fixture: 6行・gender 3水準('F', 'M', 'Other'、各2行)
+- PostgreSQL: `(Intercept) 1.25±0.2121`, `genderM 1.00±0.30 (p=0.0446)`,
+  `genderOther 1.65±0.30 (p=0.0118)`, AIC 6.4207 — **R と全16列一致**
+- 参照水準は R の既定通りソート第1水準の 'F'(係数表に現れない)
+- `make installcheck` → **All 5 tests passed**
+- `scripts/docker-installcheck.sh`(CI同一経路)→ 成功
+
+### Known Issues
+
+- 参照水準はロケール依存のソートに従う(コンテナ環境では en_US.utf8 / R側 C で
+  ASCII 英大文字のみなら差は出ない)。多バイト水準名を使う場合の挙動は未検証
+- interactions(`y ~ x * gender`)・contrast 切り替え・novel level は未対応(スコープ外)
+
+### Next Step
+
+- MVP(fit_glm)完了につき、`predict_glm()` の metadata 設計確定(JSONB 案A の
+  具体スキーマ: xlevels / contrasts / terms / 型情報)に着手
+- あわせて gaussian + factor 以外の組み合わせ(binomial + factor)のテスト拡充を検討
+
+Commit: `Add factor predictor support to fit_glm`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: fit_glm() の binomial 対応と NULL 処理テスト
 
 ### Summary

@@ -140,6 +140,7 @@ LANGUAGE plr;
 | `statistic` 列 | gaussian は t 値、binomial は z 値(R の `summary.glm` と同じ) | R との一致検証を最優先。列は1本とし、意味は family で決まることをドキュメント化 |
 | link | MVP は family の canonical link に固定(gaussian=identity, binomial=logit) | `family => 'binomial(link=probit)'` 等の拡張は TODO |
 | エラー処理 | formula の列が relation に存在しない・family 不正・収束失敗は PostgreSQL エラーとして送出 | 黙って NULL や空 relation を返さない |
+| factor 処理(2026-07-08 確定) | 文字列列は `fit_glm()` 内で**明示的に** `factor()` へ変換する。levels は `factor()` のソート順、第1水準が参照水準(treatment contrast、R の `glm()` 既定と同じ) | PL/R は text を character で渡し、R >= 4 は自動 factor 化しない。`model.frame` の暗黙変換に任せず明示変換することで、挙動を決定的にし、将来の `predict_glm()` metadata(xlevels)がこの規約に依存できるようにする |
 
 ---
 
@@ -196,6 +197,15 @@ term 粒度の列とモデル全体で1値の列を同居させ、後者は**全
 ---
 
 ## 4. `predict_glm()` を見据えた metadata 設計レビュー(未実装・論点整理)
+
+### factor 対応(2026-07-08)で再確認された前提
+
+fit 側の factor 対応により、以下が実装上の規約として確定した:
+文字列列は fit 時に明示的に `factor()` 変換され、levels はソート順・第1水準が参照・
+treatment contrast。**この規約こそが predict 時に再現すべき情報そのもの**であり、
+係数表の `term` 列(design matrix 列名)には参照水準が現れないため、xlevels
+(全水準集合)・contrast・列の型情報を metadata として保存する必要性が実装からも
+裏付けられた。novel level ポリシーと合わせ、下記の選択肢検討(案A: JSONB)は不変。
 
 ### 問題
 

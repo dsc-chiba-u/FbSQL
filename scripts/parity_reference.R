@@ -17,6 +17,11 @@ t_binomial <- data.frame(
     x = c(0.1, 0.4, 0.8, 1.0, 1.2, 1.5, 1.8, 2.0, 2.2, 2.5, 2.8, 3.0)
 )
 
+t_factor <- data.frame(
+    y      = c(1.0, 2.0, 1.5, 2.5, 3.0, 2.8),
+    gender = c("F", "M", "F", "M", "Other", "Other")
+)
+
 # The 12 complete rows of t_gaussian plus 3 rows containing NULL/NA
 # (test/sql/fit_glm_nulls.sql); glm()'s na.omit must drop exactly those 3.
 t_nulls <- rbind(
@@ -61,6 +66,9 @@ print(reference_table(t_gaussian, y ~ x1, "gaussian")[, c("term", "estimate")])
 
 cat("\n== t_binomial: y ~ x, binomial ==\n")
 print(reference_table(t_binomial, y ~ x, "binomial"), width = 200)
+
+cat("\n== t_factor: y ~ gender, gaussian ==\n")
+print(reference_table(t_factor, y ~ gender, "gaussian"), width = 200)
 
 cat("\n== t_nulls: y ~ x1 + x2, gaussian (Complete Case Analysis) ==\n")
 print(reference_table(t_nulls, y ~ x1 + x2, "gaussian")[,
