@@ -113,6 +113,10 @@ FROM
 ;
 ```
 
+正式な関数名は **`fbsql.fit_glm()` / `fbsql.predict_glm()`**(`fbsql` スキーマ配下。
+`public` には置かない。2026-07-08 確定)。論文や README の例では
+`SET search_path TO fbsql, public;` を前提に上記のように短く表記できる。
+
 ### Running Example(論文全体を通して使用)
 
 `customer` テーブル:

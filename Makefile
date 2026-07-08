@@ -1,7 +1,7 @@
 EXTENSION = fbsql
 DATA = sql/fbsql--0.1.0.sql
 
-REGRESS = fbsql_version
+REGRESS = fbsql_version fit_glm_gaussian
 REGRESS_OPTS = --inputdir=test --outputdir=test
 
 PG_CONFIG ?= pg_config

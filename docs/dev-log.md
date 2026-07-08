@@ -6,6 +6,59 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: gaussian fit_glm() MVP実装
+
+### Summary
+
+- `fbsql.fit_glm(relation, formula, family)` を PL/R で実装(gaussian のみ、内部で `stats::glm()`)
+- 出力は設計書通りの16列リレーション(`fbsql.glm_fit` 複合型): term粒度7列 + モデル粒度9列
+- R の `stats::glm()` と**全16列が4桁丸めで完全一致**することを確認(parity_reference.R)
+- Complete Case Analysis(NULL行除外)と n_obs / n_used / n_dropped の計数が正しく動作
+- 未対応 family は `pg.throwerror` で明示的にエラー
+- 名前空間方針を確定: 正式APIは `fbsql.fit_glm()`、`public.fit_glm()` は作らない
+  (README・論文では `SET search_path TO fbsql, public;` で短縮表記)
+
+### Changed Files
+
+- `sql/fbsql--0.1.0.sql`: `fbsql.glm_fit` 複合型 + `fbsql.fit_glm()`(PL/R)を追加
+- `fbsql.control`: `requires = 'plr'` を追加
+- `test/sql/fit_glm_gaussian.sql` / `test/expected/fit_glm_gaussian.out`: 新規テスト
+  (フル16列・family省略時・未対応familyエラーの3ケース、4桁丸め、ORDER BY term)
+- `test/sql/fbsql_version.sql` / expected: `CREATE EXTENSION fbsql CASCADE` に変更(plr依存)
+- `Makefile`: REGRESS に fit_glm_gaussian 追加
+- `scripts/parity_reference.R`: 同一データで R 参照値を印字(新規)
+- `docs/mvp-design.md` / `TODO.md` / `CLAUDE.md` / `README.md`: 名前空間決定の反映、タスク完了化
+
+### Validation
+
+- fixture: 残差入り手書き12行(y = 2 + 1.5·x1 − 0.5·x2 + 手書き残差。完全一致
+  データは SE/p値 が数値不安定になるため意図的に残差を入れた)
+- PostgreSQL: `(Intercept) 2.1078, x1 1.4892, x2 −0.5101`、SE/statistic/CI/AIC 含め
+  R の出力(Rscript scripts/parity_reference.R)と**全列一致**
+- NULL 混入 6 行(y NULL 1行 + x NULL 1行)→ n_obs=6, n_used=4, n_dropped=2、
+  係数は完全ケース4行での R と一致
+- `make installcheck`(pg_regress)→ **All 2 tests passed**
+- `scripts/docker-installcheck.sh`(CI同一経路)→ 成功
+
+### Known Issues
+
+- `pg.throwerror` のエラーは `ERROR: R interpreter expression evaluation error` +
+  DETAIL にメッセージ、という形式(PL/R の仕様)。メッセージ自体は明瞭だが、
+  第一行をきれいにする方法は今後の検討事項
+- rank deficiency(線形従属列)は未対応(gaussian MVP では扱わない。将来 fbrglm 同様の
+  NA 報告を検討)
+- t_nulls / t_factor の専用 pg_regress テストは未追加(TODO の次タスク)
+
+### Next Step
+
+- `fit_glm()` binomial 対応(logit、boolean 応答)+ `t_binomial` テスト
+- `t_nulls` の専用 pg_regress テスト(n_dropped 検証を回帰テスト化)
+
+Commit: `Add gaussian fit_glm MVP`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: PostgreSQL Extension 最小骨格の作成
 
 ### Summary

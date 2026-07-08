@@ -20,10 +20,15 @@ FROM
 ;
 ```
 
+The canonical name is `fbsql.fit_glm()`; run `SET search_path TO fbsql, public;`
+once per session to write it unqualified as above.
+
 ## Status
 
-Design phase — no extension code yet. The MVP specification lives in
-`docs/mvp-design.md` (in Japanese), and deferred work is tracked in `TODO.md`.
+Early proof of concept — `fbsql.fit_glm()` currently supports the gaussian
+family only, implemented in PL/R on top of R's `stats::glm()`. The MVP
+specification lives in `docs/mvp-design.md` (in Japanese), and deferred work
+is tracked in `TODO.md`.
 
 ## Development
 

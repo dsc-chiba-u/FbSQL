@@ -4,3 +4,5 @@ default_version = '0.1.0'
 # The install script creates and references the fbsql schema explicitly,
 # so the extension cannot be relocated with ALTER EXTENSION SET SCHEMA.
 relocatable = false
+# fit_glm() is implemented in PL/R (R's stats::glm() as the internal engine).
+requires = 'plr'

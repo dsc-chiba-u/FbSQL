@@ -8,7 +8,8 @@
       — 2026-07-08 検証済み: PostgreSQL 16.14 + PL/R 8.4.8.6 + R 4.2.2(`docs/development.md`)
 - [x] `fbsql.control` + `Makefile`(PGXS)+ `sql/fbsql--0.1.0.sql` の骨組み(`CREATE EXTENSION fbsql`)
       — 2026-07-08 完了: fbsql.version() ダミー関数 + pg_regress 1本 + CI組込み済み
-- [ ] `fit_glm()` gaussian 実装 + `t_gaussian` の pg_regress テスト + `scripts/parity_reference.R`
+- [x] `fit_glm()` gaussian 実装 + `t_gaussian` の pg_regress テスト + `scripts/parity_reference.R`
+      — 2026-07-08 完了: R の stats::glm() と全16列一致(4桁丸め)を確認
 - [ ] `fit_glm()` binomial 対応 + `t_binomial` テスト
 - [ ] NULL / Complete Case テスト(`t_nulls`: n_obs / n_used / n_dropped の検証)
 - [ ] factor テスト(`t_factor`: term 名・参照水準が R の既定と一致)
@@ -33,8 +34,9 @@
       (`docs/mvp-design.md` §4)
 - [ ] **novel factor level ポリシー**: `predict_glm(on_new_levels => 'error'|'na')` 案
       (fbrglm の設計を踏襲)で良いか
-- [ ] **関数の名前空間**: `fit_glm` を public に置くか、専用スキーマ(例: `fbsql.fit_glm`)
-      に置くか。論文の見た目は前者が良いが、名前衝突リスクがある
+- [x] **関数の名前空間**: 解決(2026-07-08) — 正式APIは `fbsql.fit_glm()`。
+      `public.fit_glm()` は作らない。README・論文では `SET search_path TO fbsql, public;`
+      で短く書けることを示す(`docs/mvp-design.md` §2)
 - [ ] **relation 引数の受け渡し形式の拡張**: SQL 文字列(MVP)に加えて regclass
       (テーブル名直接指定)を許すか
 - [ ] **CI のベースイメージ**: PL/R 入り PostgreSQL の公式イメージは存在しないため、
