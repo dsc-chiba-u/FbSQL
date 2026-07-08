@@ -45,4 +45,4 @@ ORDER BY term;
 SELECT * FROM fbsql.fit_glm(
     relation => $$ SELECT y, x1 FROM t_gaussian $$,
     formula  => 'y ~ x1',
-    family   => 'binomial');
+    family   => 'poisson');

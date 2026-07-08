@@ -6,6 +6,59 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: fit_glm() の binomial 対応と NULL 処理テスト
+
+### Summary
+
+- `fbsql.fit_glm()` に `family = 'binomial'`(logit リンク)を追加。gaussian と同じ
+  16列の出力 relation を維持し、binomial では `statistic` が z 値になる
+- boolean 応答(Running Example の `churn_flag` 相当)が 0/1 整数と同じ結果になることを検証
+- `t_nulls` テストを追加: t_gaussian の12行 + NULL入り3行で、Complete Case Analysis が
+  ちょうど3行を除外し(n_obs=15, n_used=12, n_dropped=3)、係数が gaussian テストと
+  一致することを回帰テスト化
+- R の `stats::glm()` との一致を binomial / nulls とも全列(4桁丸め)で確認
+- 未対応 family のエラーテストは `poisson` に変更(binomial が対応済みになったため)
+
+### Changed Files
+
+- `sql/fbsql--0.1.0.sql`: family 検証を supported ベクタ化、`switch` で family オブジェクト
+  解決、`link` は `fam$link` から取得
+- `test/sql/fit_glm_binomial.sql` / expected: 新規(フル16列 + boolean 応答の2ケース)
+- `test/sql/fit_glm_nulls.sql` / expected: 新規(Complete Case 検証)
+- `test/sql/fit_glm_gaussian.sql` / expected: エラーケースを poisson に変更、
+  エラーメッセージの supported families 表記更新
+- `Makefile`: REGRESS に fit_glm_binomial, fit_glm_nulls を追加
+- `scripts/parity_reference.R`: family 汎用化、t_binomial / t_nulls セクション追加
+- `TODO.md`: binomial / NULL テストのタスクを完了化
+
+### Validation
+
+- binomial fixture(手書き12行、0/1 が x 範囲で交互に出現し完全分離なし、収束警告なし):
+  `(Intercept) −1.0172±1.2677 (z=−0.8023, p=0.4224)`, `x 0.6318±0.6925 (z=0.9124,
+  p=0.3616)`, AIC 19.7413, deviance 15.7413, null_deviance 16.6355 — **R と全列一致**
+- boolean 応答 → 0/1 整数と同一の係数・SE
+- t_nulls → n_obs=15 / n_used=12 / n_dropped=3、係数は完全ケース12行の R と一致
+- `make installcheck` → **All 4 tests passed**(version / gaussian / binomial / nulls)
+- `scripts/docker-installcheck.sh`(CI同一経路)→ 成功
+
+### Known Issues
+
+- 非 canonical link(probit 等)は未対応(TODO 済み)
+- factor 変数のテスト(`t_factor`)が MVP タスクの残り1件
+- ユーザー提示のエラーケース「gaussian データ + family='binomial'」は、binomial 対応後は
+  「y values must be 0 <= y <= 1」という R 由来のエラーになる(仕様通りだがメッセージは
+  R のまま)
+
+### Next Step
+
+- `t_factor` テスト(factor 変数、term 名と参照水準が R の既定と一致すること)
+- その後 MVP 残タスクの CI 拡充を経て `predict_glm()` の設計確定へ
+
+Commit: `Add binomial fit_glm support and NULL handling test`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: gaussian fit_glm() MVP実装
 
 ### Summary

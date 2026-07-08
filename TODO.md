@@ -10,8 +10,10 @@
       — 2026-07-08 完了: fbsql.version() ダミー関数 + pg_regress 1本 + CI組込み済み
 - [x] `fit_glm()` gaussian 実装 + `t_gaussian` の pg_regress テスト + `scripts/parity_reference.R`
       — 2026-07-08 完了: R の stats::glm() と全16列一致(4桁丸め)を確認
-- [ ] `fit_glm()` binomial 対応 + `t_binomial` テスト
-- [ ] NULL / Complete Case テスト(`t_nulls`: n_obs / n_used / n_dropped の検証)
+- [x] `fit_glm()` binomial 対応 + `t_binomial` テスト
+      — 2026-07-08 完了: logit リンク、z値・AIC 含め R と一致。boolean 応答も検証
+- [x] NULL / Complete Case テスト(`t_nulls`: n_obs / n_used / n_dropped の検証)
+      — 2026-07-08 完了: 15行中3行除外(n_obs=15, n_used=12, n_dropped=3)を回帰テスト化
 - [ ] factor テスト(`t_factor`: term 名・参照水準が R の既定と一致)
 - [ ] `.github/workflows/regress.yml`(Docker イメージ上で installcheck)
 

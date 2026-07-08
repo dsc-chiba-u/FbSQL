@@ -33,8 +33,8 @@ CREATE TYPE fbsql.glm_fit AS (
     null_deviance double precision
 );
 
--- MVP: gaussian family only. R's model object never leaves this function;
--- callers only ever see the relation above.
+-- MVP: gaussian and binomial families. R's model object never leaves this
+-- function; callers only ever see the relation above.
 CREATE FUNCTION fbsql.fit_glm(
     relation text,
     formula  text,
@@ -48,10 +48,15 @@ AS $fit_glm$
         pg.throwerror("fit_glm: relation must be a non-empty SQL string")
     if (is.null(formula) || is.na(formula) || !nzchar(formula))
         pg.throwerror("fit_glm: formula must be a non-empty R formula string")
-    if (is.null(family) || is.na(family) || !identical(family, "gaussian"))
+    supported <- c("gaussian", "binomial")
+    if (is.null(family) || is.na(family) || !(family %in% supported))
         pg.throwerror(sprintf(
-            "fit_glm: family '%s' is not supported yet (supported families: gaussian)",
-            family))
+            "fit_glm: family '%s' is not supported yet (supported families: %s)",
+            family, paste(supported, collapse = ", ")))
+    ## Canonical links only for now (gaussian: identity, binomial: logit).
+    fam <- switch(family,
+                  gaussian = stats::gaussian(),
+                  binomial = stats::binomial())
 
     df <- pg.spi.exec(relation)
     if (!is.data.frame(df) || nrow(df) == 0L)
@@ -61,8 +66,7 @@ AS $fit_glm$
     ## (na.omit) = Complete Case Analysis; the counts below make the
     ## dropped rows explicit instead of silent.
     n_obs <- nrow(df)
-    fit <- stats::glm(stats::as.formula(formula), data = df,
-                      family = stats::gaussian())
+    fit <- stats::glm(stats::as.formula(formula), data = df, family = fam)
     n_used <- stats::nobs(fit)
 
     coefs <- summary(fit)$coefficients
@@ -78,8 +82,8 @@ AS $fit_glm$
         p_value       = coefs[, 4L],
         conf_low_95   = ci[, 1L],
         conf_high_95  = ci[, 2L],
-        family        = "gaussian",
-        link          = "identity",
+        family        = family,
+        link          = fam$link,
         formula       = formula,
         n_obs         = n_obs,
         n_used        = n_used,

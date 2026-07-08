@@ -1,9 +1,9 @@
 # Reference values from stats::glm() for the pg_regress fixtures.
 #
-# The data below is kept literally in sync with test/sql/fit_glm_gaussian.sql.
+# The data below is kept literally in sync with the fixtures in test/sql/.
 # Run inside the fbsql-dev container (or any R >= 4):
 #     Rscript scripts/parity_reference.R
-# and compare the printed tables against test/expected/fit_glm_gaussian.out.
+# and compare the printed tables against test/expected/*.out.
 # Rounding (4 decimals) matches the test queries.
 
 t_gaussian <- data.frame(
@@ -12,7 +12,23 @@ t_gaussian <- data.frame(
     x2 = c(5, 3, 8, 1, 9, 4, 7, 2, 6, 0, 10, 3)
 )
 
-reference_table <- function(fit, formula_string) {
+t_binomial <- data.frame(
+    y = c(0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0),
+    x = c(0.1, 0.4, 0.8, 1.0, 1.2, 1.5, 1.8, 2.0, 2.2, 2.5, 2.8, 3.0)
+)
+
+# The 12 complete rows of t_gaussian plus 3 rows containing NULL/NA
+# (test/sql/fit_glm_nulls.sql); glm()'s na.omit must drop exactly those 3.
+t_nulls <- rbind(
+    t_gaussian,
+    data.frame(y = c(NA, 99.9, 50.0), x1 = c(12, NA, 13), x2 = c(4, 2, NA))
+)
+
+reference_table <- function(data, formula, family_name) {
+    fam <- switch(family_name,
+                  gaussian = stats::gaussian(),
+                  binomial = stats::binomial())
+    fit <- stats::glm(formula, data = data, family = fam)
     coefs <- summary(fit)$coefficients
     ci <- stats::confint.default(fit)  # Wald, as in fbsql.fit_glm()
     out <- data.frame(
@@ -23,12 +39,12 @@ reference_table <- function(fit, formula_string) {
         p_value       = round(coefs[, 4], 4),
         conf_low_95   = round(ci[, 1], 4),
         conf_high_95  = round(ci[, 2], 4),
-        family        = "gaussian",
-        link          = "identity",
-        formula       = formula_string,
-        n_obs         = nrow(t_gaussian),
+        family        = family_name,
+        link          = fam$link,
+        formula       = deparse(formula),
+        n_obs         = nrow(data),
         n_used        = stats::nobs(fit),
-        n_dropped     = nrow(t_gaussian) - stats::nobs(fit),
+        n_dropped     = nrow(data) - stats::nobs(fit),
         aic           = round(stats::AIC(fit), 4),
         deviance      = round(stats::deviance(fit), 4),
         null_deviance = round(fit$null.deviance, 4),
@@ -37,10 +53,15 @@ reference_table <- function(fit, formula_string) {
     out[order(out$term), ]
 }
 
-cat("== y ~ x1 + x2 ==\n")
-fit2 <- stats::glm(y ~ x1 + x2, data = t_gaussian, family = stats::gaussian())
-print(reference_table(fit2, "y ~ x1 + x2"), width = 200)
+cat("== t_gaussian: y ~ x1 + x2, gaussian ==\n")
+print(reference_table(t_gaussian, y ~ x1 + x2, "gaussian"), width = 200)
 
-cat("\n== y ~ x1 ==\n")
-fit1 <- stats::glm(y ~ x1, data = t_gaussian, family = stats::gaussian())
-print(reference_table(fit1, "y ~ x1")[, c("term", "estimate")])
+cat("\n== t_gaussian: y ~ x1, gaussian (family default) ==\n")
+print(reference_table(t_gaussian, y ~ x1, "gaussian")[, c("term", "estimate")])
+
+cat("\n== t_binomial: y ~ x, binomial ==\n")
+print(reference_table(t_binomial, y ~ x, "binomial"), width = 200)
+
+cat("\n== t_nulls: y ~ x1 + x2, gaussian (Complete Case Analysis) ==\n")
+print(reference_table(t_nulls, y ~ x1 + x2, "gaussian")[,
+    c("term", "estimate", "std_error", "n_obs", "n_used", "n_dropped")])
