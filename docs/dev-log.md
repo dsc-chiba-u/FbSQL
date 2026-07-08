@@ -6,6 +6,58 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: PGXN 公開準備の最小整備(META.json / Changes)
+
+### Summary
+
+- **`META.json` を新規作成**(PGXN Meta Spec v1.0.0 準拠): name / abstract /
+  description / version 0.1.0 / maintainer / license mit / provides(install
+  script と README を参照)/ prereqs(PostgreSQL 16.0.0 + plr 8.4.0)/
+  resources(GitHub の homepage / bugtracker / repository)/ meta-spec / tags 8件
+- **`Changes` を新規作成**(0.1.0 unreleased): skeleton / Docker+PL/R 環境 /
+  fit_glm(gaussian・binomial・factor・NULL・metadata)/ predict_glm(R不使用・
+  novel level)/ Running Example / pg_regress・CI を初期リリース候補として整理
+- README に **Installation セクション**を追加(`make install` →
+  `CREATE EXTENSION fbsql CASCADE`、PL/R の superuser 要件、PGXN 未投稿の明記)と
+  **Related repositories**(FbSQL-experiments への導線、citation は論文公開時に追加)
+- バージョン整合を確認: control(0.1.0)= install script ファイル名 = META.json =
+  provides = Changes
+- 不明項目は勝手に埋めず TODO 化: maintainer メールは fbrglm/CRAN と同じ hotmail を
+  **仮置き(要本人確認)**、PostgreSQL prereq は検証済みの 16 のみ
+- PGXN への実投稿は行っていない(意図的)
+
+### Changed Files
+
+- `META.json` / `Changes`: 新規
+- `README.md`: Installation / Related repositories セクション追加
+- `TODO.md`: META.json+Changes タスク完了化、「PGXN 投稿前チェックリスト」節を新設
+  (正式バリデータ検証・maintainer確定・PGバージョン範囲・配布アーカイブ・
+  Zenodo DOI・Changes 日付確定)
+
+### Validation
+
+- META.json: JSON 妥当性 OK、必須フィールド欠落なし、provides.file の実在確認、
+  バージョン整合 0.1.0 で一致
+- `scripts/docker-installcheck.sh` → **All 11 tests passed**(make install +
+  pg_regress。コード無変更の回帰確認)
+- PGXN の正式バリデータ(PGXN::Meta::Validator)は環境に Perl 依存を持ち込まないため
+  未実行 — 投稿前チェックリストに記録
+
+### Known Issues
+
+- maintainer メールアドレスは仮置き(TODO 参照)
+- prereqs の PostgreSQL 16.0.0 は「検証済み最小」であり、対応範囲の確定は今後
+
+### Next Step
+
+- **JSS 論文フェーズへ**: `FbSQL/paper/` に fbrglm の型(Rmd + jss.cls + 2系統ビルド)
+  で骨組みを作り、設計原則・Running Example 実測・experiments の比較表を流し込む
+
+Commit: `Add PGXN release metadata`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: Running Example 統合テストと README 同期 — 本体 MVP 到達
 
 ### Summary

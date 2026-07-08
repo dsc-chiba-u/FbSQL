@@ -1,0 +1,47 @@
+Revision history for fbsql
+
+0.1.0 (unreleased)
+      Initial release candidate.
+
+      Extension infrastructure:
+      - PostgreSQL extension skeleton: control file (requires plr), PGXS
+        Makefile, install script, fbsql schema, fbsql.version().
+      - Pinned Docker development environment (PostgreSQL 16 + PL/R 8.4.8.6
+        + R 4.2.2) with helper scripts for build, PL/R verification, and
+        installcheck.
+      - pg_regress suite (11 tests) run locally and in GitHub Actions CI;
+        all numeric results verified against R's stats::glm() /
+        predict.glm() to 4 decimals.
+
+      fbsql.fit_glm(relation, formula, family):
+      - Fits a GLM via PL/R (stats::glm) from a relation given as an SQL
+        string and an R formula string; gaussian (identity) and binomial
+        (logit) families.
+      - Numeric and factor predictors (text columns follow glm()
+        conventions: sorted levels, treatment contrasts).
+      - Complete Case Analysis with explicit n_obs / n_used / n_dropped.
+      - Returns a single relation: one row per term (estimate, std_error,
+        statistic, p_value, Wald 95% CIs) plus model-level columns (family,
+        link, formula, aic, deviance, null_deviance) and a jsonb metadata
+        column (meta_version 1: response, term_labels, intercept,
+        data_classes, xlevels, contrasts, coef_terms).
+      - Clear fit_glm-prefixed errors for unsupported families, invalid
+        formulas, missing columns, and empty relations.
+
+      fbsql.predict_glm(relation, model, on_new_levels):
+      - Scores a relation from a fit_glm() model relation alone -- computed
+        in PL/pgSQL without R, from the coefficients and metadata.
+      - gaussian/identity (linear predictor) and binomial/logit
+        (probabilities, as R's predict(type = "response")).
+      - Numeric and factor predictors (treatment-contrast dummies rebuilt
+        from stored factor levels); NULL predictors yield NULL predictions.
+      - Factor levels unseen at fit time: on_new_levels => 'error'
+        (default) or 'na' (NULL prediction for those rows only).
+      - Returns SETOF record: the input relation's rows plus a
+        <response>_predicted column.
+
+      Documentation and examples:
+      - Running example (customer churn: fit on 2025 data, predict 2026)
+        covered end to end by the regression tests.
+      - Companion repository FbSQL-experiments with reproducible
+        comparisons against MADlib, PostgresML, and Spark MLlib.

@@ -1,0 +1,52 @@
+{
+   "name": "fbsql",
+   "abstract": "Closure-preserving formula-based statistical modeling in SQL",
+   "description": "FbSQL is a PostgreSQL extension that proposes a statistical modeling DSL faithful to SQL design principles: set-oriented, declarative, closed over relations (relation in, relation out), order-independent, and consistent with SQL NULL semantics. Models are specified with R formula notation; fbsql.fit_glm() fits a GLM (gaussian or binomial) via PL/R and returns a single relation of term rows with model-level columns and a jsonb metadata column, and fbsql.predict_glm() scores a relation from that model relation alone, without R. glm is the first proof of concept of the design.",
+   "version": "0.1.0",
+   "maintainer": [
+      "Koki Tsuyuzaki <k.t.the-answer@hotmail.co.jp>"
+   ],
+   "license": "mit",
+   "provides": {
+      "fbsql": {
+         "abstract": "Formula-based GLM fitting and prediction as relations",
+         "file": "sql/fbsql--0.1.0.sql",
+         "docfile": "README.md",
+         "version": "0.1.0"
+      }
+   },
+   "prereqs": {
+      "runtime": {
+         "requires": {
+            "PostgreSQL": "16.0.0",
+            "plr": "8.4.0"
+         }
+      }
+   },
+   "resources": {
+      "homepage": "https://github.com/dsc-chiba-u/FbSQL",
+      "bugtracker": {
+         "web": "https://github.com/dsc-chiba-u/FbSQL/issues"
+      },
+      "repository": {
+         "url": "https://github.com/dsc-chiba-u/FbSQL.git",
+         "web": "https://github.com/dsc-chiba-u/FbSQL",
+         "type": "git"
+      }
+   },
+   "generated_by": "Data Science Core, Chiba University",
+   "meta-spec": {
+      "version": "1.0.0",
+      "url": "https://pgxn.org/meta/spec.txt"
+   },
+   "tags": [
+      "statistics",
+      "glm",
+      "regression",
+      "logistic regression",
+      "formula",
+      "machine learning",
+      "plr",
+      "r"
+   ]
+}

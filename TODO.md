@@ -44,7 +44,8 @@
 - [ ] 非 canonical link(`binomial(link=probit)` 等)の family 指定記法
 - [ ] profile likelihood 信頼区間(MVP は Wald 固定)
 - [ ] R スクリプトと pg_regress expected の自動 diff を CI に追加
-- [ ] `META.json` + `Changes` の整備、PGXN 公開チェックリスト
+- [x] `META.json` + `Changes` の整備 — 2026-07-08 完了(PGXN Meta Spec v1.0.0 準拠、
+      JSON妥当性・必須フィールド・バージョン整合を確認済み)
 - [ ] `FbSQL-experiments` リポジトリの作成(ベンチマーク・関連システム比較・論文用テーブル生成)
 - [ ] `paper/` に JSS 原稿の骨組み(fbrglm の paper/ 構成を踏襲)
 - [ ] Zenodo DOI アーカイブ(本体 + experiments、投稿時)
@@ -69,6 +70,18 @@
 - [ ] **R のバージョン方針**: 開発イメージの R は 4.2.2(Debian bookworm)。MVP には
       十分だが、論文の Computational details でどのバージョンを報告するか、上げる
       場合の手段(ソースビルド / backports)を実装安定後に検討
+
+## PGXN 投稿前チェックリスト(投稿はまだしない)
+
+- [ ] `META.json` を PGXN::Meta::Validator(または pgxn-utils)で正式検証
+- [ ] maintainer メールアドレスの確定(現在は fbrglm/CRAN と同じ hotmail を仮置き —
+      要本人確認)
+- [ ] 対応 PostgreSQL バージョン範囲の確定(現在 16 のみ検証のため prereqs は
+      16.0.0。PL/R が入る他メジャーでの installcheck 後に広げる)
+- [ ] 配布アーカイブの作成確認(`git archive --format=zip` 相当)と PGXN
+      アップロード手順の確認
+- [ ] リリースタグ + Zenodo DOI アーカイブ(本体・experiments の両方)
+- [ ] `Changes` の日付・バージョン確定(現在 0.1.0 unreleased)
 
 ## 論文の Discussion に書くこと(実装しない)
 

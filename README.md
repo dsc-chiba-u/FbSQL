@@ -15,6 +15,28 @@ The PoC API is two functions in the `fbsql` schema: `fbsql.fit_glm()` and
 `fbsql.predict_glm()`. Run `SET search_path TO fbsql, public;` once per
 session to write them unqualified.
 
+## Installation
+
+Requirements: PostgreSQL (developed and tested against 16) with the
+[PL/R](https://github.com/postgres-plr/plr) extension available, which in
+turn needs R. `fit_glm()` runs R's `stats::glm()` through PL/R;
+`predict_glm()` is pure PL/pgSQL and needs no R at runtime.
+
+From a source checkout (uses PGXS via `pg_config`):
+
+```bash
+make install
+```
+
+```sql
+CREATE EXTENSION fbsql CASCADE;  -- CASCADE also installs the required plr
+```
+
+PL/R is an untrusted language, so creating the extension requires superuser;
+grant `EXECUTE` on the `fbsql` functions to regular users as needed. PGXN
+release metadata lives in `META.json` and the change history in `Changes`
+(PGXN publication is planned but not yet done).
+
 ## Running example: customer churn
 
 Fit a churn model on 2025 customers, then score 2026 customers — covered
@@ -95,6 +117,15 @@ scripts/docker-installcheck.sh   # make install + pg_regress inside the image
 ```
 
 See `docs/development.md` for details. Deferred work is tracked in `TODO.md`.
+
+## Related repositories
+
+- [FbSQL-experiments](https://github.com/dsc-chiba-u/FbSQL-experiments) —
+  reproducible comparisons against Apache MADlib, PostgresML, and Spark
+  MLlib, plus the material behind the manuscript's tables and figures.
+
+A software paper on FbSQL's language design is in preparation; citation
+information will be added on release.
 
 ## License
 
