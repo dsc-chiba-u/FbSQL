@@ -171,8 +171,11 @@ the design trade-offs and delegates the dimension-by-dimension detail to
 that table.
 
 ```{r tab1, echo=FALSE, results='asis'}
-cat(readLines(if (knitr::is_latex_output())
-    "tables/related_work.tex" else "tables/related_work.md"), sep = "\n")
+## Drop the generator's "%" provenance comments: pandoc does not treat
+## them as raw LaTeX and would typeset them as visible text.
+tab <- readLines(if (knitr::is_latex_output())
+    "tables/related_work.tex" else "tables/related_work.md")
+cat(tab[!grepl("^%", tab)], sep = "\n")
 ```
 
 ## A taxonomy of SQL-oriented machine learning systems
@@ -791,8 +794,9 @@ scenario is the everyday one: learn from last year's customers, score this
 year's.
 
 ```{r tab2, echo=FALSE, results='asis'}
-cat(readLines(if (knitr::is_latex_output())
-    "tables/customer_dataset.tex" else "tables/customer_dataset.md"), sep = "\n")
+tab <- readLines(if (knitr::is_latex_output())
+    "tables/customer_dataset.tex" else "tables/customer_dataset.md")
+cat(tab[!grepl("^%", tab)], sep = "\n")
 ```
 
 ## Model fitting
