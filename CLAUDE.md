@@ -231,11 +231,68 @@ testthat、vignette、cran-comments)はそのまま持ち込まない。PostgreS
    → 言語・リレーション設計 → PoC 実装 → Running Example → ベンチマーク
    (FbSQL-experiments から)→ 一般化(木系アンサンブル、C実装)とトレードオフの Discussion
 
-## 現状(2026年7月)
+## 開発コマンド
 
-グリーンフィールド: 本リポジトリには README、LICENSE(MIT, Data Science Core)、
-本ファイルのみが存在する。Extension のコードはまだない。元の計画メモ
-(`FbSQLプロジェクトメモ.txt`)は本ファイルに完全に吸収済みで、削除された。
+すべて Docker 前提(ホストに R / PostgreSQL 不要)。環境は
+PostgreSQL 16.14 + PL/R 8.4.8.6 + R 4.2.2(`docker/Dockerfile`)。
+
+```bash
+scripts/docker-build.sh          # 開発イメージ fbsql-dev のビルド(最初に1回)
+scripts/check-plr.sh             # CREATE EXTENSION plr の疎通確認
+scripts/docker-installcheck.sh   # make → install → pg_regress 全11本(CI と同じ)
+```
+
+- 単一テスト: 常駐コンテナ内で `make installcheck REGRESS=running_example` の
+  ように PGXS の `REGRESS` を上書き(テスト一覧は `Makefile` の REGRESS)
+- R 側の参照値: `Rscript scripts/parity_reference.R`(fbsql-dev コンテナ内)。
+  テストは全数値を R と**4桁丸め**で照合し、`ORDER BY term COLLATE "C"` で
+  ロケール非依存にする規約
+- CI: `.github/workflows/docker-build.yml`(イメージビルド + installcheck)
+
+論文(`paper/`。ビルド環境は別イメージ fbsql-paper = rocker/verse:4.4.2):
+
+```bash
+cd paper
+make image   # fbsql-paper イメージのビルド(最初に1回)
+make html    # 開発ビルド(html_document)
+make jss     # 投稿ビルド(rticles::jss_article + pdflatex)
+make clean
+```
+
+`paper/tables/` は **FbSQL-experiments の script 51 から自動生成**(手編集
+禁止)。図は `paper/figures/*.R` から SVG + PDF を生成(drawio ソース併置)。
+
+## 実装済みコードのハマりどころ(必読)
+
+- **PL/R 内で `pg.spi.exec` を tryCatch しない。** SPI エラーで abort した
+  トランザクションの上から R 側でエラーを投げるとバックエンドがクラッシュ
+  する。relation SQL の失敗は PostgreSQL ネイティブエラーをそのまま伝播
+  させる(`sql/fbsql--0.1.0.sql` のコメントと `docs/mvp-design.md` §2 参照)
+- **論文の見出しに `_` を入れない。** jss.cls は見出しテキストを PDF
+  bookmark のアンカー名に生で書き込むため、`fit_glm()` 等を見出しに書くと
+  `make jss` が `Missing \endcsname` で壊れる
+- **キャプションなしの表(longtable)は LaTeX の table カウンタを進める。**
+  Language Design の17列仕様表の直後に `\addtocounter{table}{-1}` 補正あり
+- **render.sh 内の JSS 用 YAML(title / author / abstract / keywords)は
+  paper.Rmd と手動同期**が必要
+- 実装は `sql/fbsql--0.1.0.sql` に集約(fit_glm = PL/R、predict_glm =
+  PL/pgSQL で R 不使用)。出力 relation は17列(metadata jsonb は
+  meta_version 1)。詳細設計は `docs/mvp-design.md`
+
+## 現状(2026年7月時点)
+
+- **Extension 本体は MVP 完了**: `fbsql.fit_glm()`(gaussian / binomial、
+  factor、Complete Case、Wald CI、metadata jsonb)+ `fbsql.predict_glm()`
+  (PL/pgSQL、factor、`on_new_levels`)。pg_regress 11本 + CI グリーン、
+  全数値 R 一致(4桁)。PGXN 用 `META.json` / `Changes` 整備済み(未投稿)
+- **論文(`paper/paper.Rmd`)は本文初稿完成**: 全9章 + Abstract + 図4点 +
+  表2点(experiments から生成)。構成整理レビュー済み
+  (`docs/paper-review-2026-07-08.md` に残課題)
+- **FbSQL-experiments 稼働中**: running example の R parity(13/13)、
+  MADlib / PostgresML / Spark の実測比較、Hivemall / H2O の文献比較、
+  related_work.csv → 論文表の生成パイプライン
+- 進捗ログは `docs/dev-log.md`(最新が先頭)。未決事項は `TODO.md`
+- 元の計画メモ(`FbSQLプロジェクトメモ.txt`)は本ファイルに吸収済みで削除
 
 ## Non-goals(本プロジェクトが目指さないこと)
 
