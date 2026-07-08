@@ -6,6 +6,52 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: README Installation の Docker ファースト化
+
+### Summary
+
+- README の Installation を3段構成へ整理:
+  **Recommended (Docker)** → **Alternative (Build from source)** →
+  **Future (PGXN)**。本体コード・論文は無変更
+- **Recommended (Docker)**: GHCR 公開は将来と明記し("Docker images will
+  be published through GHCR. Until then, build ... locally")、実在する
+  手順のみ記載 — `scripts/docker-build.sh` + `scripts/docker-installcheck.sh`
+  (「テストスイートは running example を verbatim 実行するので、green =
+  論文のワークフローを end-to-end 再現」と明記)。対話的サーバ用に
+  mount + `make install` + `CREATE EXTENSION fbsql CASCADE` の docker
+  コマンド列を掲載し、**実機で end-to-end 検証済み**(CREATE EXTENSION →
+  fbsql.version() 成功)。trust 認証は開発専用の注意書き付き
+- **Alternative (Build from source)**: 旧 Requirements 以降をほぼ現状維持で
+  移設(PostgreSQL / PL/R / R、PGXS `make install`、`CREATE EXTENSION`、
+  superuser 注意)
+- **Future (PGXN)**: 「planned」と慎重に表現(META.json / Changes 同梱の
+  事実のみ)+ 公開後の `pgxn install fbsql` を予告
+- Development 節に1文補足: fbsql-dev イメージはインストール用と開発用を
+  兼ねる(別のランタイムイメージはまだ無い)
+- 論文との整合を確認: Software availability(「README の記載どおり
+  source checkout から PGXS でインストール」)、Replication material
+  (conformance suite が論文の数値を再現)と矛盾なし
+
+### Changed Files
+
+- `README.md`: Installation の再構成 + Development 節の補足のみ
+
+### Validation
+
+- README 記載の Docker 対話手順を実機検証(temporary container で
+  make install → CREATE EXTENSION fbsql CASCADE → fbsql.version())
+- `scripts/docker-installcheck.sh` は CI と同一経路のため再実行省略
+
+### Next Step
+
+- GHCR への Docker イメージ公開(CI からの push 設定)→ README の
+  Recommended を pull コマンドに更新、その後 PGXN 投稿準備
+
+Commit: `Improve installation guide`(本エントリを含むコミット)。
+push 後の `git status`: .DS_Store 系を除き clean。
+
+---
+
 ## 2026-07-08: JSS 定型節の完成(+ CLAUDE.md 更新)
 
 ### Summary

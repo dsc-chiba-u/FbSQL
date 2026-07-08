@@ -17,6 +17,36 @@ session to write them unqualified.
 
 ## Installation
 
+### Recommended (Docker)
+
+Docker images will be published through GitHub Container Registry (GHCR).
+Until then, build the development image locally — it bundles everything
+FbSQL needs (PostgreSQL 16, PL/R, and R), so nothing is installed on the
+host:
+
+```bash
+scripts/docker-build.sh          # build the fbsql-dev image (one-off)
+scripts/docker-installcheck.sh   # install the extension + run the full test suite
+```
+
+The test suite executes the running example below verbatim, so a green
+`docker-installcheck.sh` also reproduces the paper's workflow end to end.
+For an interactive server with the extension installed:
+
+```bash
+docker run --rm -d --name fbsql-dev -p 5432:5432 \
+    -e POSTGRES_HOST_AUTH_METHOD=trust \
+    -v "$PWD":/workspace -w /workspace fbsql-dev
+docker exec -e PGUSER=postgres fbsql-dev make install
+psql -h localhost -U postgres    # then: CREATE EXTENSION fbsql CASCADE;
+```
+
+(`trust` authentication is a development-only setting; do not expose this
+container. `scripts/docker-run.sh` starts the same server in the
+foreground without the source mount.)
+
+### Alternative (Build from source)
+
 Requirements: PostgreSQL (developed and tested against 16) with the
 [PL/R](https://github.com/postgres-plr/plr) extension available, which in
 turn needs R. `fit_glm()` runs R's `stats::glm()` through PL/R;
@@ -33,9 +63,21 @@ CREATE EXTENSION fbsql CASCADE;  -- CASCADE also installs the required plr
 ```
 
 PL/R is an untrusted language, so creating the extension requires superuser;
-grant `EXECUTE` on the `fbsql` functions to regular users as needed. PGXN
-release metadata lives in `META.json` and the change history in `Changes`
-(PGXN publication is planned but not yet done).
+grant `EXECUTE` on the `fbsql` functions to regular users as needed.
+
+### Future (PGXN)
+
+PGXN publication is planned; the release metadata already lives in
+`META.json` and the change history in `Changes`. Once released,
+installation will become:
+
+```bash
+pgxn install fbsql
+```
+
+```sql
+CREATE EXTENSION fbsql;
+```
 
 ## Running example: customer churn
 
@@ -108,7 +150,9 @@ list is attached as in the example above.
 
 ## Development
 
-The development environment (PostgreSQL 16 + PL/R + R) is pinned with Docker:
+The same `fbsql-dev` image used for installation above doubles as the
+development environment — there is no separate runtime image yet. The
+environment (PostgreSQL 16 + PL/R + R) is pinned with Docker:
 
 ```bash
 scripts/docker-build.sh          # build the dev image
