@@ -6,6 +6,73 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: 論文全体の構成整理(章順・重複削減・用語統一)
+
+### Summary
+
+- 事前に実施した一貫性レビュー(`docs/paper-review-2026-07-08.md`、
+  Major 5件 / Minor 11件)のうち、指示された4点を修正。新規本文なし
+- **章順変更**: Running Example を Implementation の前へ移動
+  (新順序: Intro → RW → DP → LD → **RE → Impl** → Eval → Discussion →
+  Conclusion)。これによりレビュー M1 の相互参照矛盾4箇所
+  (Impl "running example of the previous section" / "as the next section
+  describes" / RE Summary の前方橋渡し / Eval "suite of the previous
+  section")が**無修正で正しくなる**ことを確認。Intro 末尾のロードマップを
+  新順序に更新。Figure 1〜4・Table 1〜2 の番号は出現順維持で無変更
+- **相対参照の総点検**(行またぎ考慮で全 previous/next/above/below を
+  監査)し3箇所を修正: RW の "principles of the previous section"(M2)→
+  "introduced above and developed in the next section"、Impl と
+  Discussion の "previous subsection" 2箇所(1つずれ)→ "described
+  above" / "sketched above"
+- **RW の実測記述を Evaluation へ集約**(M3): c105 無言スコアの詳細、
+  ordinal encoding の実測値(F=1...)、RFormula 再パラメータ化の実測、
+  handleInvalid='skip' の具体挙動を RW から削除し、"as shown in the
+  experimental evaluation" 型の参照1文に置換。RW は設計思想・API・
+  モデル表現のレビューに純化
+- **SQL コード重複削減**(M5): LD の fit / predict のフル SQL を
+  シグネチャレベル(内側クエリを `...` 省略、列定義リストは維持)に短縮し
+  "in full in the *Running Example* section" を明記。フル SQL は RE のみ
+- **用語統一**: model relation(fitted-model / model-shaped /
+  glm_fit-shaped を置換)、execution engine(computation engine を置換)、
+  conformance suite(regression / verification / parity suite 等 12箇所を
+  統一)、scoring relation(data relation / the data to be scored)、
+  formula semantics(formula and fitting semantics 等)、
+  relation-in / relation-out(スペース入り表記に統一、見出しも変更)。
+  Minimum Atomic Relation は指示どおり出現頻度を維持(削減なし)
+
+### Changed Files
+
+- `paper/paper.Rmd`: 上記の構成整理のみ
+- `docs/paper-review-2026-07-08.md`: レビューメモ(前回作成分をコミット)
+
+### Validation
+
+- 修正後に全文再点検: previous/next 参照の残誤りなし(結合テキストで
+  監査)、JSS PDF の章番号順(1〜9)・Figure 1〜4・Table 1〜2 の番号を
+  pdftotext で確認、"In our measured runs" の残存 0
+- `make html` → 成功(未解決引用なし)
+- `make jss` → 成功
+- `make clean` → 成功
+
+### Known Issues(レビューの残項目 — 今回のスコープ外)
+
+- DP 内の各原則ごとのシステム対比段落は残存(M3 の完全解消には DP の
+  縮約が必要だが、今回は RW のみ指示)
+- MAR の多重出現(M4)は指示により維持
+- Minor: "argument- order" の改行ハイフン、PL/R 非新規性3回、
+  R なし predict の存在証明4回、Codd 1970 と正規化の典拠問題 など
+  (paper-review-2026-07-08.md 参照)
+
+### Next Step
+
+- JSS 定型節(Computational details / Acknowledgments / Replication
+  material)の執筆、または残 Minor の文言修正
+
+Commit: `Refine manuscript structure`(本エントリを含むコミット)。
+push 後の `git status`: .DS_Store 系を除き clean。
+
+---
+
 ## 2026-07-08: 論文 Table assets の生成(experiments 側からの自動生成)
 
 ### Summary
