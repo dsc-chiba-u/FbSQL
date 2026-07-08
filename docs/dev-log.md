@@ -39,7 +39,8 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 - `\dx` 上の extension 登録スキーマは public(関数実体は fbsql スキーマ)。関数の
   名前空間方針(`fbsql.fit_glm` vs public の `fit_glm`)は TODO.md の未決事項のまま
-- CI は GitHub Actions 上での成功をまだ確認していない(push 後に要確認)
+- ~~CI は GitHub Actions 上での成功をまだ確認していない~~ → push 後に確認済み:
+  run 28917262130(build + installcheck)成功
 
 ### Next Step
 
