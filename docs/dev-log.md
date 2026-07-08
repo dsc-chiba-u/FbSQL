@@ -6,6 +6,66 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: Experimental Evaluation 章の初稿執筆
+
+### Summary
+
+- `paper/paper.Rmd` の **Experimental Evaluation 章のみ**を本文化。冒頭で
+  「性能ベンチマークは報告しない(計算性能は主張の外)」と宣言し、
+  評価を3つの問い(仕様適合 / PoC の end-to-end 動作 / 同一タスクが
+  各システムで何を要求するか)として構成。観察のみを書き、解釈は
+  Discussion へ送る文体を全節で徹底
+- 構成は指示どおり4小節: (8.1) Conformance to R(本体テストとは独立に
+  companion repo で再実行した parity **13/13 一致**。「継続的に検証される
+  性質であって表明された意図ではない」)、(8.2) Running example end to
+  end(fit / metadata が実際に予測を駆動 / NULL 行保持 / novel level の
+  error と 'na' まで MVP 全面が1ワークフローで動作)、(8.3) Comparative
+  evaluation(章の中心。MADlib 1.21.0 / PostgresML 2.7.12 / Spark 3.5.1
+  の固定環境での再現。**設計差のみ**を記述: MADlib = 数値はほぼ同一
+  (std_error 1個が第4位で相違 = IRLS 許容誤差)で差は interface 側 —
+  手動 one-hot・位置配列・c105 の無言参照水準スコア(実測)。
+  PostgresML = 数値一致は期待されない別仕様 — task+algorithm、class
+  label 出力、ordinal encoding、NULL hard error、catalog 内 binary。
+  Spark = 予測は4桁一致・係数表は reference level 差で再パラメータ化の
+  範囲(数値検証済み)、skip の行落ち(5行→3行)、DataFrame closure)、
+  (8.4) Summary(R compatibility / SQL language design(差は能力でなく
+  設計)/ relation representation(端で観察された挙動はモデルの所在と
+  記述方法に遡る)の3観察 + Discussion への橋渡し)
+- 表の数値は本文で繰り返さず、related_work 比較表・parity CSV・
+  per-system design notes CSV への参照で済ませた。Figure 4(3類型図)を
+  参照し内容は TODO コメント
+- 文献追加なし(システム名の引用も Related Work 初出で済んでいるため
+  本章では再引用せず)
+
+### Changed Files
+
+- `paper/paper.Rmd`: Experimental Evaluation 章の本文化のみ
+
+### Validation
+
+- `make html` → 成功。未解決引用なし
+- `make jss` → 成功(13/13 の記述反映を確認。見出しに `_` を使わない
+  規約も遵守)
+- `make clean` → 成功、生成物が git に残らないことを確認
+
+### Known Issues
+
+- 比較表(Related Work)と parity 表の紙面取込みは未着手(prose 参照 +
+  TODO のまま)。experiments 側で tables/*.tex を生成してから差し込む
+- Spark の c104/c105 が NULL になる経路(summary CSV 上は一致扱い)は
+  本文で言及していない(手元で経路を確認していないため安全側に倒した)
+
+### Next Step
+
+- Discussion 章の初稿(非正規化・JSONB・列定義リストのトレードオフ、
+  named arguments と標準 SQL、木系 Atomic Relation、C 実装展望、
+  weights/offset の意図的除外)
+
+Commit: `Draft experimental evaluation section`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: PostgreSQL Extension Implementation 章の初稿執筆
 
 ### Summary

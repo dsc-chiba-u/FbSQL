@@ -1093,10 +1093,139 @@ section specified, a self-contained representation.
 
 # Experimental Evaluation
 
-<!-- TODO: design comparison built from FbSQL-experiments (running example
-     reproduced on MADlib / PostgresML / Spark MLlib; numeric parity where
-     the estimator allows it; safety differences: silent reference-level
-     scoring, hard NULL errors, dropped rows, non-R RFormula semantics). -->
+For a language-design proposal, evaluation does not mean speed, and this
+section reports no performance benchmark — computational performance is
+explicitly outside FbSQL's claims. The evaluation instead answers three
+questions. Does the reference implementation conform to its specification?
+Does the proof of concept work end to end? And when the same statistical
+task is expressed on existing systems, what does each system's design
+require of the user? All materials — scripts, pinned Docker environments,
+raw outputs, and summary tables — live in the companion repository
+`FbSQL-experiments`, with results committed so that changes surface as
+diffs; this section reports what was observed and defers interpretation to
+the *Discussion* section.
+
+## Conformance to R
+
+The *Language Design* section fixed FbSQL's semantics by reference to R's
+`glm()` and `predict.glm()`, so the first evaluation question is
+conformance. Independently of the extension's own regression suite, the
+companion repository re-runs the running example and compares every
+number against R: the four coefficients, the four standard errors, and
+all five predictions — including the two that must be NULL — at
+four-decimal rounding. All thirteen comparisons agree
+(`results/summary/running_example_parity.csv`). Combined with the
+`pg_regress` suite of the previous section, which locks the same property
+across all eleven test files on every commit, conformance to the
+specification is a continuously checked result, not a stated intention.
+
+## Running example end to end
+
+The second question is whether the proof of concept holds together as a
+whole, not merely as parts. The running example exercises the full MVP
+surface in one workflow: a binomial fit with a numeric predictor, a
+three-level factor, and a boolean response; a model relation whose
+`metadata` is then actually consumed — the stored levels and contrasts
+drive prediction, not merely document it; scoring that keeps the
+NULL-`age` row with a NULL prediction; the default unseen-level policy
+stopping the query with the documented error for the `Nonbinary` row; and
+the `'na'` policy returning NULL for exactly that row while scoring the
+rest. Every statement and every number shown in the *Running Example*
+section is executed verbatim by the regression suite and reproduced in
+the companion repository.
+
+## Comparative evaluation
+
+The third question is comparative: the same churn workflow — same
+seventeen customers, same model, same scoring set — was reproduced on
+Apache MADlib 1.21.0 (on PostgreSQL 11), PostgresML 2.7.12 (on its bundled
+PostgreSQL 15), and Spark MLlib 3.5.1 (local mode), each inside a pinned
+Docker environment in the companion repository. The two Tier-3 systems of
+the *Related Work* section (Hivemall; H2O-3 with Sparkling Water) were
+compared from documentation only and are not re-examined here. The
+dimension-by-dimension results are in the comparison table introduced in
+the *Related Work* section and in per-system design-notes tables in the
+companion repository (`results/summary/*_api_design_notes.csv`); this
+subsection reports the design differences the reproduction made
+observable, not the tables' every cell.
+
+<!-- TODO(Figure 4, figures/comparison_taxonomy.pdf, drawn for the paper):
+     the three-group taxonomy as a diagram — In-database SQL-ML (MADlib,
+     PostgresML, FbSQL), SQL-on-engine ML (Spark MLlib, Hivemall),
+     SQL-adjacent ML (H2O-3 + Sparkling Water) — annotated with where the
+     model lives in each group (side tables / catalogs / relation; object;
+     cluster). -->
+
+**MADlib.** Numerically, MADlib fits the same model: all four coefficients
+agree with FbSQL and R to four decimals, and one standard error differs in
+the fourth decimal (attributable to a different IRLS convergence
+tolerance); predictions for the regular scoring rows agree to four
+decimals. The differences are therefore almost entirely interface design.
+Reproducing the workflow required the user to one-hot encode `gender` by
+hand before training, to pass the predictors as an array expression
+string, and to score through a per-row scalar function joined against the
+model table's coefficient array. Two consequences were observed directly:
+the model tables store coefficients as position-indexed arrays without
+term names, so the mapping from coefficient to meaning exists only at the
+call site; and the unseen-level customer `c105` was scored silently — the
+hand-built dummy columns are all zero for an unknown level, so MADlib
+returned a probability as if `c105` were the reference gender, with no
+error, warning, or NULL.
+
+**PostgresML.** Here numeric agreement is not expected and was not
+observed: PostgresML answers a different specification. Its API takes a
+task and an algorithm name rather than a formula and a family;
+`pgml.predict()` returned class labels (with probabilities available from
+a separate function), and no standard errors, *p* values, or confidence
+intervals exist to compare. The reproduction surfaced three observable
+design facts: text predictors were label-encoded to ordinal reals by
+default (`F` = 1, `M` = 2, `Other` = 3), so a linear model receives an
+artificial ordering of genders; a NULL feature at prediction time raised a
+hard error, so the NULL-`age` row had to be guarded by hand; and the
+fitted model exists only as a serialized binary in PostgresML's catalog
+tables, reached at scoring time through the project name's currently
+deployed model. Although PostgresML shares FbSQL's host — both are
+PostgreSQL extensions called from SQL — none of the running example's SQL
+shape carries over.
+
+**Spark MLlib.** Spark's generalized linear regression is an IRLS GLM, and
+its predictions agree with R and FbSQL to four decimals. The fitted model,
+however, is presented differently: `RFormula` ordered the factor levels by
+frequency and took the *least frequent* level (`Other`) as the reference,
+where R and FbSQL take the first sorted level (`F`), so the two coefficient
+tables disagree term by term. The companion repository verifies numerically
+that they are the same model under reparameterization — each Spark
+coefficient is an exact linear combination of the FbSQL ones — so the
+difference is representation, not estimation; standard errors, being
+parameterization-dependent, differ accordingly. Around the model, the
+observed behaviors were: the default pipeline raised an error when scoring
+rows containing NULL; setting `handleInvalid = "skip"` silently dropped
+those rows, returning three predictions for five input customers; and the
+fitted model is a host-language `PipelineModel` object, with
+`transform()` providing relation-in/relation-out shape at the DataFrame
+level rather than in SQL.
+
+## Summary
+
+The evaluation establishes three observations. First, *R compatibility*:
+the reference implementation reproduces R's `glm()` and `predict.glm()`
+exactly at the tested precision, in its own regression suite and in an
+independent re-run — thirteen of thirteen parity comparisons. Second,
+*SQL language design*: the same statistical task, on systems that in two
+cases fit numerically the same model, required materially different user
+programs — manual encoding and coefficient arrays on MADlib, an
+algorithm-and-deployment vocabulary on PostgresML, a host-language
+pipeline with non-R formula semantics on Spark — confirming that the
+differences at issue are design choices rather than capability gaps.
+Third, *relation representation*: FbSQL was the only evaluated setting in
+which the fitted model itself was a queryable relation, and the behaviors
+observed around the edges of the workflow — silent reference-level
+scoring, hard NULL errors, silently dropped rows, reparameterized
+coefficient tables — each trace back to where a system keeps its model
+and how the user must describe it. What these observations imply for the
+trade-offs FbSQL accepted — the denormalized model relation, the JSONB
+metadata, the column definition list — is the subject of the next
+section.
 
 # Discussion
 
