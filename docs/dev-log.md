@@ -6,6 +6,73 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: JSS 定型節の完成(+ CLAUDE.md 更新)
+
+### Summary
+
+- **JSS 定型節4本を追加**し、原稿末尾の TODO コメントを解消。形式は
+  fbrglm JSS ドラフトを踏襲(Replication material は番号付き §10、
+  Computational details / Software availability / Acknowledgments は
+  `{.unnumbered}`)
+- **Replication material**: 2リポジトリの役割分担を明文化(FbSQL =
+  extension + conformance suite(running example verbatim)+ Docker +
+  原稿 / FbSQL-experiments = 比較環境・再現スクリプト・R parity・
+  文献比較の出典・related_work.csv → Table 1/2 の生成)。「表は手編集
+  しない」「再実行で差分が diff として現れる」「開発者固有パスなし」を
+  明記。Zenodo DOI は投稿時挿入の TODO コメント
+- **Computational details**: 再現環境のみ(PostgreSQL 16.14 / PL/R
+  8.4.8.6 / R 4.2.2 / Docker / GitHub Actions で毎コミット pg_regress /
+  比較3システムの固定バージョン / 原稿は rocker/verse 4.4.2 で単一 Rmd
+  からレンダリング)。実装詳細は書かない
+- **Software availability**: GitHub(MIT)+ PGXS インストール +
+  **PGXN は planned と慎重に表現**(META.json 同梱の事実のみ)
+- **Acknowledgments**: fbrglm を参考に PostgreSQL / PL/R 開発者、比較
+  対象 OSS コミュニティ、Data Science Core(千葉大)、RIKEN AGIS を記載。
+  資金源・共著者側機関(順天堂・中央)・個人名は投稿前確認の TODO
+  コメント
+- **references.bib 整理**: `postgresql` を新規追加(Computational
+  details から引用)、`rcore` のバージョンを R 4.2.2 / 2022 に固定
+  (TODO 解消)。全12キーの使用を確認 — 未使用・重複・欠落なし。
+  fbrglm のバージョン表記問題(CRAN 0.0.1 vs メモ 0.1.0)は未固定の
+  まま維持(投稿前検証項目)
+- 併せて **CLAUDE.md を現状に同期**(別コミット `03902e7`): 陳腐化した
+  「現状」節の書き換え(グリーンフィールド→MVP 完了・論文初稿完成)、
+  開発コマンド節(docker-build / installcheck / 単一テスト / paper build)、
+  実装済みコードのハマりどころ節(pg.spi.exec 非 tryCatch、見出し `_`
+  禁止、longtable カウンタ、render.sh 手動同期)を追加
+
+### Changed Files
+
+- `paper/paper.Rmd`: 定型節4本の追加のみ(本文・図表は無変更)
+- `paper/references.bib`: postgresql 追加、rcore 固定
+- `CLAUDE.md`: 上記(コミット `03902e7`)
+
+### Validation
+
+- `make html` → 成功(未解決引用なし)
+- `make jss` → 成功(4節が正しい順序でレンダリング、{.unnumbered} も
+  jss.cls で問題なし)
+- `make clean` → 成功
+- references: 全12キー使用済みを機械確認
+
+### 投稿前に残る TODO
+
+- Zenodo DOI(両リポジトリ、投稿時)→ Replication material へ挿入
+- Acknowledgments の資金源・機関・個人名の確定
+- fbrglm / h2o のバージョン表記確定、PGXN 投稿(公開後に
+  Software availability を更新)
+- render.sh と paper.Rmd の YAML 最終同期確認、keywords の最終確定
+- レビュー残 Minor(paper-review-2026-07-08.md)
+
+### Next Step
+
+- 残 Minor の文言修正、または投稿メタデータ(資金源等)の本人確認待ち
+
+Commit: `Complete JSS front matter`(本エントリを含むコミット)。
+push 後の `git status`: .DS_Store 系を除き clean。
+
+---
+
 ## 2026-07-08: 論文全体の構成整理(章順・重複削減・用語統一)
 
 ### Summary
