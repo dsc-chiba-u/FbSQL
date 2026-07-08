@@ -1,5 +1,8 @@
 # CLAUDE.md — FbSQL プロジェクトコンテキスト
 
+This file provides guidance to Claude Code (claude.ai/code) when working
+with code in this repository.
+
 このファイルは本リポジトリの背景・目的・方針に関する開発者向けコンテキストの主要な
 情報源である(詳細は README・論文・ソースコードも参照)。今後の Claude Code
 セッションが、まずこのファイルを読めばプロジェクト全体を把握できることを目指す。
@@ -31,7 +34,8 @@ DSL* を提案する **PostgreSQL Extension** である。
 
 ### 解決したい課題
 
-既存のSQL向け機械学習システム(MADlib、Spark MLlib、HiveMall、BigQuery ML)は、
+既存のSQL向け機械学習システム(MADlib、PostgresML、Spark MLlib、Hivemall、
+H2O-3 + Sparkling Water。BigQuery ML は非OSSのため比較対象外)は、
 それぞれの設計目標のもとでモデルオブジェクトや手続き的インターフェースを導入して
 おり、SQLの設計原則(特に Relation-in / Relation-out)との間にトレードオフを抱えて
 いる。FbSQL は既存システムを「崩している」と断定するのではなく、モデルオブジェクト・
@@ -105,13 +109,19 @@ SELECT customer_id, churn_flag_predicted
 FROM
  predict_glm(
   relation => $$
-   SELECT *
+   SELECT customer_id, age, gender
    FROM customer
    WHERE DATE_PART('YEAR', created_at) = 2026
   $$,
-  model => 'logit_model')
+  model => $$ SELECT * FROM logit_model $$
+ ) AS p(customer_id varchar, age integer, gender varchar,
+        churn_flag_predicted double precision)
 ;
 ```
+
+(確定仕様: `model` はモデルリレーションを返す **SQL 文字列**として渡す —
+名前解決やレジストリは無い。`predict_glm` は `SETOF record` を返すため
+呼び出し側が列定義リストを書く。`on_new_levels => 'error' | 'na'` 引数あり。)
 
 正式な関数名は **`fbsql.fit_glm()` / `fbsql.predict_glm()`**(`fbsql` スキーマ配下。
 `public` には置かない。2026-07-08 確定)。論文や README の例では
@@ -141,7 +151,8 @@ FROM
 
 **fbrglm**(`../fbrglm`、github.com/dsc-chiba-u/fbrglm)は同じ作者の先行プロジェクト:
 Rパッケージ("Safe Formula-Based Regularized GLM"、glmnet の formula ベースラッパー)で、
-CRAN 公開済み(v0.1.0)、`paper/` に JSS 原稿を同梱し、companion リポジトリ
+CRAN 公開済み(バージョン表記はメモの 0.1.0 と CRAN 表示の 0.0.1 が不一致 —
+論文投稿前に要照合)、`paper/` に JSS 原稿を同梱し、companion リポジトリ
 `../fbrglm-experiments`(Zenodo アーカイブ済みの JSS replication material)を持つ。
 
 FbSQL は **fbrglm で確立したプロジェクト運営の型を引き継ぐ**が、成果物の種類は
@@ -158,8 +169,8 @@ FbSQL は **fbrglm で確立したプロジェクト運営の型を引き継ぐ*
 - リリース時に両リポジトリを **Zenodo で DOI アーカイブ**
 - **コミットスタイル**: 英語・命令形・大文字始まりの1行サマリ
   ("Add ...", "Fix ...", "Split ...")。Conventional Commits 形式の接頭辞は不使用、本文なし
-- 本体リポジトリに **GitHub Actions の CI** + Docker イメージ公開(GHCR/DockerHub)。
-  experiments 側は CI なしで、代わりに conda 等で環境を固定
+- 本体リポジトリに **GitHub Actions の CI**(Docker イメージ公開は将来。
+  GHCR/DockerHub)。experiments 側は CI なしで、代わりに Docker で環境を固定
 - experiments 側の**再現性の規律**: シード固定、合成データジェネレータ、結果を git に
   コミット、開発者固有パスの排除
 
@@ -185,11 +196,12 @@ testthat、vignette、cran-comments)はそのまま持ち込まない。PostgreS
 - **`FbSQL`(本リポジトリ)**: PostgreSQL Extension 本体 — Extension のソース、
   インストール手順・テスト、ドキュメント、そして(fbrglm の型に従えば)最終的に
   `paper/` 配下の JSS 原稿。
-- **`FbSQL-experiments`**(兄弟リポジトリとして今後作成): ベンチマーク、関連システム
-  (MADlib、Spark MLlib、HiveMall、可能なら BigQuery ML)との比較、再現可能な実験
-  スクリプト、論文用テーブル・図の生成。環境固定(例: PostgreSQL + PL/R + R の
-  Docker Compose)もこちらに置く。投稿時に JSS replication material として Zenodo に
-  アーカイブする。
+- **`FbSQL-experiments`**(兄弟リポジトリ、稼働中): 関連システム比較
+  (Tier 1 = MADlib 実測必須 / Tier 2 = PostgresML・Spark MLlib 実測 /
+  Tier 3 = Hivemall・H2O 文献ベース。BigQuery ML は非OSSのため除外)、
+  running example の R parity、`data/related_work.csv`(比較表の source of
+  truth)と論文表の生成(script 50/51)。各システムの環境は Docker で固定。
+  投稿時に JSS replication material として Zenodo にアーカイブする。
 
 ## 開発方針
 

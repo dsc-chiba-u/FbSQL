@@ -35,6 +35,11 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
   (TODO 解消)。全12キーの使用を確認 — 未使用・重複・欠落なし。
   fbrglm のバージョン表記問題(CRAN 0.0.1 vs メモ 0.1.0)は未固定の
   まま維持(投稿前検証項目)
+- 追記(2回目の /init): CLAUDE.md 本文中に残っていた**旧設計の API 例を
+  実装に同期**(`predict_glm` の `model => 'logit_model'` 名前渡し →
+  SQL 文字列渡し + 列定義リスト)。ほか experiments 節の「今後作成」表記、
+  比較対象リスト、fbrglm バージョン不一致の注記、英語ガイダンス行を修正
+  (コミット `Sync CLAUDE.md API example with implementation`)
 - 併せて **CLAUDE.md を現状に同期**(別コミット `03902e7`): 陳腐化した
   「現状」節の書き換え(グリーンフィールド→MVP 完了・論文初稿完成)、
   開発コマンド節(docker-build / installcheck / 単一テスト / paper build)、
