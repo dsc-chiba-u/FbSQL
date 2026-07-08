@@ -6,6 +6,61 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: Introduction 章の初稿執筆(+著者情報の反映を記録)
+
+### Summary
+
+- `paper/paper.Rmd` の **Introduction 章のみ**を本文化(見出しなしの
+  流れる4段落構成。JSS 慣例に合わせ subsection は使わない)
+- 指示どおりの流れ: (1) DB 内での統計解析の需要増(MADlib / PostgresML /
+  Spark MLlib / Hivemall / H2O に軽く言及、BigQuery ML は需要の証左として
+  触れるのみ。比較はしない)→ (2) 既存システムは computation に集中
+  (scalability / algorithm coverage / deployment)— "legitimate and
+  different design objectives" と明記し否定しない → (3) **中心の問題提起**:
+  SQL は言語であり、formula での指定・fit が返すもの・モデルの所在・
+  prediction の形という言語設計の問いは「SQL としてどう書くべきか」として
+  正面から扱われてこなかった。FbSQL の提案を1文で予告(閉包性を hard
+  constraint に。glm は PoC、PL/R で glm を呼べること自体は貢献でない)→
+  (4) 貢献4項目(5原則の明文化とレビューレンズ / FbSQL の言語仕様と
+  Minimum Atomic Relation / R-parity で固定した PostgreSQL extension
+  reference implementation / running example + 5システム比較評価)+
+  論文構成の道案内1文
+- 禁止表現は不使用("make different trade-offs" / "emphasize" 等で統一)
+- 文献は既存のみ(hellerstein2012madlib, postgresml, meng2016mllib,
+  hivemall, h2o, bigqueryml, codd1970relational, chambers1992statistical,
+  plr)。新規追加なし
+- 記録: 直前のコミット `4e2ade1` で著者情報を fbrglm 形式の3著者
+  (Tsuyuzaki / Sakamaki / Nishiuchi)に更新済み(指示により dev-log
+  追記なしの単独コミットだったため、ここに記録を残す)
+
+### Changed Files
+
+- `paper/paper.Rmd`: Introduction 章の本文化のみ
+
+### Validation
+
+- `make html` → 成功。未解決引用なし
+- `make jss` → 成功(貢献列挙段落の反映を pdftotext で確認)
+- `make clean` → 成功、生成物が git に残らないことを確認
+
+### Known Issues
+
+- Abstract は未執筆(YAML 内 TODO のまま)。keywords も未確定
+- 末尾の道案内文は現在の章順(Implementation → Running Example →
+  Evaluation)を前提にしている。章順を変える場合は要修正
+
+### Next Step
+
+- Implementation 章の初稿(PL/R fit、R なし PL/pgSQL predict、pg_regress +
+  R parity の検証規律、SPI-abort の教訓)— これで残る本文は
+  Implementation / Experimental Evaluation / Discussion / Conclusion +
+  Abstract
+
+Commit: `Draft introduction section`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: Running Example 章の初稿執筆
 
 ### Summary

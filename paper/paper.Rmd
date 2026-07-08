@@ -54,10 +54,76 @@ bibliography: references.bib
 
 # Introduction
 
-<!-- TODO (1-3 lines when writing): motivate "statistical modeling written
-     SQL-like"; existing SQL-ML trades away SQL design principles via model
-     objects / procedural interfaces; contributions list (language design,
-     relation design, PoC extension). -->
+Statistical modeling is increasingly performed where the data already
+lives: inside database systems and SQL-centric data platforms. The reasons
+are practical — organizational data accumulates in relational systems,
+export pipelines add cost and governance risk, and the people who know the
+data often work in SQL. A substantial ecosystem has grown in response.
+Apache MADlib brings statistical methods into PostgreSQL and Greenplum as
+SQL-callable functions [@hellerstein2012madlib]; PostgresML packages a
+modern machine learning stack as a PostgreSQL extension [@postgresml];
+Spark MLlib attaches machine learning to an engine whose query language
+includes SQL [@meng2016mllib]; Apache Hivemall embedded training and
+prediction directly into HiveQL [@hivemall]; H2O-3 connects a dedicated
+machine learning cluster to Spark data [@h2o]; and the commercial success
+of managed offerings such as BigQuery ML [@bigqueryml] confirms the demand
+from the SQL side.
+
+These systems concentrate, by design, on computation. MADlib and Spark
+MLlib emphasize scalability — statistical algorithms that run on parallel
+and distributed data. H2O-3 emphasizes algorithm coverage and predictive
+performance. PostgresML emphasizes deployment: training, versioning, and
+serving models inside the operational database. These are legitimate and
+different design objectives, and the systems serve them well; nothing in
+this paper argues otherwise.
+
+What has received far less attention is the *language* question. SQL is not
+merely an invocation surface; it is a language with a coherent design
+inherited from the relational model [@codd1970relational]: operations are
+set-oriented, specifications are declarative, every operator consumes and
+produces relations, results do not depend on row or argument order, and
+NULL has defined semantics. When statistical modeling enters this language,
+a series of design questions follows. How should a statistical model be
+*specified* — is there a place in SQL for something like the formula
+notation that has served statistical practice for three decades
+[@chambers1992statistical]? What should a fitting function consume and,
+above all, *return* — and if the answer is not a relation, what happens to
+the composability that closure provides? Where does the fitted model
+*live* — as data the user can query, or as an object, a file, or catalog
+state on the side? And what is the shape of prediction — a scalar function
+applied row by row, or a mapping from relations to relations? Existing
+systems answer these questions implicitly, each making different trade-offs
+shaped by its computational objectives — model objects here, procedural
+interfaces there, host-language APIs elsewhere. But the question "what
+should statistical modeling look like *as SQL*?" has rarely been posed as a
+language-design problem in its own right. That is the problem this paper
+takes up. We propose FbSQL, a formula-based statistical modeling DSL that
+treats SQL's design principles as hard constraints — most centrally
+closure: fitting and prediction consume relations and return relations, and
+no model object is ever exposed. Generalized linear models serve as the
+proof of concept; the claim of the paper is the language design, not the
+estimator — calling R's `glm()` from PostgreSQL has long been possible
+[@plr] and is not, by itself, a contribution.
+
+This paper makes four contributions. First, it distills five design
+principles — set orientation, declarativeness, closure, order independence,
+and NULL semantics — into explicit constraints for statistical modeling in
+SQL, and uses them as a lens for reviewing existing systems. Second, it
+specifies FbSQL: a formula-based, closure-preserving DSL whose central
+design decision is the relation representation of fitted models, including
+the *Minimum Atomic Relation* question — what is the smallest relation that
+supports both interpretation and prediction — and a queryable metadata
+design that makes the model relation self-contained. Third, it provides a
+reference implementation as an open-source PostgreSQL extension whose
+numerical behavior is locked to R's `glm()` and `predict.glm()` by a
+regression test suite. Fourth, it demonstrates the design on a running
+example — a customer-churn workflow written entirely in SQL — and evaluates
+it against five open-source SQL-oriented machine learning systems, with all
+comparison material reproducible from a companion repository. The remainder
+of the paper follows this order: related work, the design principles, the
+language design, the reference implementation, the running example, the
+comparative evaluation, and a discussion of trade-offs and generalization
+beyond GLMs.
 
 # Related Work
 
