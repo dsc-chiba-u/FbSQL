@@ -6,6 +6,48 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: 本文圧縮(Shortening Pass)— 32→30ページ
+
+### Summary
+
+- 論理・章構成・図表を維持したまま **788語削減**(12,658 → 11,870語、
+  ソース全体比 ~6%、本文プローズ比 ~10%)。**32 → 30ページ**(目標達成)
+- **Related Work(最優先)**: 5システム段落を各2〜3文へ圧縮(設計思想・
+  API・モデル表現・本論文との差のみ。細部挙動は "as shown in the
+  experimental evaluation" への委譲で統一)。MADlib ~60%減、PostgresML
+  ~45%減、Spark ~50%減、Hivemall ~40%減、H2O ~50%減。taxonomy・
+  cross-cutting・Positioning は維持
+- **Design Principles**(内容は不変、LD 済み内容への橋渡し化):
+  Closure の ¶2〜4(17列の列挙・denormalization 詳説・既存システムの
+  spectrum)を LD / RW / Discussion への参照付き短縮版に統合(~55%減)。
+  Declarative / Order independence / NULL semantics の既存システム対比を
+  各1文に。「From glm to a family」を3文へ(MAR の完全な文は LD の
+  blockquote に一本化 — レビュー M4 の解消)
+- **Language Design**: named-argument 段落を短縮(**"argument- order" の
+  改行ハイフン事故もこれで解消** — レビュー Minor 1)。SQL 例・仕様説明は
+  現状維持
+- **Discussion**: Future work のみ ~35%短縮。他は不変
+- サニティ確認: Figure 1〜4 / Table 1〜2 / MAR(6箇所 — 出現頻度維持の
+  指示どおり)/ Affiliation / 定型節すべて健在、未解決引用ゼロ、
+  全12文献キー使用継続
+
+### Changed Files
+
+- `paper/paper.Rmd`: 圧縮のみ(新規内容なし)
+
+### Validation
+
+- `make clean && make html && make jss` → 成功、**30ページ**
+- 未解決引用・参照なし
+
+### Next Step
+
+- 更新版 paper-jss.pdf(30ページ)で ChatGPT 最終査読
+
+Commit: `Tighten manuscript`(本エントリを含むコミット)。
+
+---
+
 ## 2026-07-08: JSS 投稿前 polish(+ Docker publish の CI 結果確定)
 
 ### Summary

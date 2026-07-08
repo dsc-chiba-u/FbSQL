@@ -218,85 +218,50 @@ to it only briefly in the *Discussion* section.
 
 ## Design trade-offs
 
-**Apache MADlib** emphasizes in-database scale and statistical output: its
-`glm()` covers five families with link options, reports standard errors,
-*z* statistics, and *p* values, and runs inside PostgreSQL and Greenplum.
-The trade-offs concentrate in specification and model representation.
-There is no formula: independent variables are supplied as an SQL array
-expression string, and categorical predictors must be one-hot encoded by
-the user before training, so the declarative-specification work is
-delegated to the query author. Training is procedure-style — a
-void-returning call that writes two output tables by side effect — and the
-model table stores coefficients, standard errors, and *p* values as
-parallel arrays without term names, so position is the only link between a
-coefficient and its meaning. As shown in the experimental evaluation, these
-choices have observable consequences at the edges of the workflow, most
-visibly for factor levels unseen at training time.
+**Apache MADlib** emphasizes in-database scale with full statistical
+output (five GLM families with link options; standard errors, *z*
+statistics, *p* values), but not specification: predictors are supplied as
+an SQL array expression string with user-side one-hot encoding, training
+writes two side-effect tables whose coefficient arrays carry no term
+names, and prediction is a per-row scalar function. As shown in the
+experimental evaluation, these choices surface at the edges of the
+workflow, most visibly for factor levels unseen at training time.
 
-**PostgresML** shares FbSQL's deployment surface — it is likewise a
-PostgreSQL extension called through SQL functions — but pursues a different
-objective: a modern machine learning platform with model lifecycle
-management. Specification reduces to a task and an algorithm name
-(`'classification'`, `'linear'`); there is no family/link concept, and the
-reporting consists of machine learning metrics rather than standard errors
-or confidence intervals. The fitted model is a serialized binary in
-PostgresML's catalog tables, and prediction is a scalar function that
-refers to a *project name*, resolving through the currently deployed model
-— an indirection through mutable state rather than a value the caller
-passes. Its default treatment of text and NULL features likewise departs
-from statistical convention, as shown in the experimental evaluation. The
-emphasis is operational — automatic
-train/test splits, metric tracking, deployment — and the trade-off is that
-neither the statistical model nor its representation is expressed
-relationally.
+**PostgresML** shares FbSQL's deployment surface — a PostgreSQL extension
+called through SQL functions — but pursues model lifecycle management:
+specification reduces to a task and an algorithm name with no family/link
+concept or inferential reporting, the fitted model is a serialized binary
+in catalog tables, and prediction resolves through the currently deployed
+model of a named project rather than through a value the caller passes.
+Its default treatment of text and NULL features likewise departs from
+statistical convention, as shown in the experimental evaluation.
 
-**Spark MLlib** is the system that demonstrates formula-shaped
-specification at scale: its `RFormula` transformer accepts
-`churn_flag ~ age + gender` and derives the encoding automatically.
-However, the semantics differ from R's — factor levels are ordered by
-frequency rather than alphabetically — so coefficient tables are
-parameterized differently than R's, a hazard when porting R workflows; the
-experimental evaluation quantifies the effect on the running example.
-Closure is
-preserved at the DataFrame level rather than the SQL level:
-`transform()` maps the input DataFrame to the same DataFrame with appended
-prediction columns, which is exactly the relation-in / relation-out shape,
-but expressed in the host-language Pipeline API while the fitted model
-itself remains a JVM object persisted as a directory. NULL handling and
-unseen-level handling are coupled into a single `handleInvalid` switch with
-no keep-the-row-with-NULL option; the experimental evaluation traces its
-behavior on the running example.
+**Spark MLlib** demonstrates formula-shaped specification at scale through
+its `RFormula` transformer, though with semantics that differ from R's
+(frequency-ordered factor levels — a hazard when porting R workflows), and
+it preserves closure at the DataFrame level rather than the SQL level:
+`transform()` maps DataFrame to DataFrame while the fitted model remains a
+JVM object. NULL and unseen-level handling share a single `handleInvalid`
+switch with no keep-the-row-with-NULL option; the experimental evaluation
+traces both differences on the running example.
 
-**Apache Hivemall** (literature based) makes the opposite trade-off from
-Spark: everything stays inside HiveQL, and the trained model is a genuine
+**Apache Hivemall** (literature based) makes the opposite trade-off:
+everything stays inside HiveQL and the trained model is a genuine
 `(feature, weight)` table — the closest any reviewed system comes to
-relational closure. What it delegates is the statistical semantics. There
-is no family abstraction (training functions are per-algorithm, such as
-`logress` for logistic regression); features are arrays of `index:value`
-strings assembled by the user, so encoding is manual; the feature column of
-the model table is an index without term semantics; and prediction is
-hand-written SQL — exploding the feature array, joining the model table,
-and applying the link function explicitly. Hyperparameters are packed into
-a single option string rather than named arguments. Hivemall thus preserves
-the relational mechanics while relying on the query author for everything
-the formula machinery would otherwise derive.
+relational closure — but the statistical semantics are left entirely to
+the query author: hand-assembled `index:value` feature arrays,
+per-algorithm training functions with option-string hyperparameters, and
+hand-written prediction SQL over a feature index that carries no term
+semantics.
 
 **H2O-3 with Sparkling Water** (literature based) is statistically the
-richest GLM implementation among the systems reviewed: ten families,
-multiple links, offsets, observation weights, and interaction terms are all
-documented parameters, with standard errors and *p* values available on
-request. It is not a SQL DSL and does not aim to be one: models are
-specified as x/y column lists rather than formulas, the fitted model is a
-binary object in the H2O cluster (exportable as MOJO/POJO), and Spark SQL
-reaches the system only through DataFrame-to-H2OFrame conversion, at which
-point the data has left the relational world. Its documented defaults are
-tuned to predictive machine learning rather than to SQL or R conventions:
-missing values are mean-imputed by default rather than dropped, default
-fits are elastic-net regularized (so unpenalized `glm()` parity requires
-setting `lambda = 0`), and factor levels unseen at scoring time are
-replaced by the most frequent training level. Within its own design
-objective these are coherent choices; they simply answer to a different set
-of principles than the ones considered here.
+richest GLM reviewed — ten families, links, offsets, weights, and
+interactions — but it is not a SQL DSL and does not aim to be one: models
+are specified as x/y column lists, live as binary objects in the H2O
+cluster, and are reached from Spark SQL only by converting the data out of
+the relational world. Its documented defaults (mean imputation,
+regularized fits, silent replacement of unseen levels) answer coherently
+to predictive-ML conventions rather than to SQL's or R's.
 
 Across the five systems a pattern emerges: each preserves some of the five
 principles and relaxes others, and in every case the relaxation follows
@@ -372,25 +337,19 @@ feature vector; the unit of every operation is a relation.
 
 SQL describes the result to be computed, not the procedure that computes
 it. Model specification in existing SQL-oriented systems is frequently
-operational: MADlib takes the independent variables as an SQL array
-expression string, and Apache Hivemall [@hivemall] trains on feature arrays
-of `index:value` strings that the user assembles by hand, so encoding
-categorical variables, constructing interaction columns, and keeping column
-order consistent with the coefficients are all user responsibilities.
+operational — array expression strings in MADlib, hand-assembled
+`index:value` feature arrays in Hivemall [@hivemall] — leaving encoding,
+interaction columns, and column order as user responsibilities.
 
 FbSQL adopts the formula notation of @chambers1992statistical as its model
 specification language: `'churn_flag ~ age + gender'` names a statistical
 relationship, and the system derives everything operational from it —
 factor levels, treatment contrasts, and the construction of the design
 matrix — following the same conventions as R's `glm()`. Spark MLlib
-[@meng2016mllib] demonstrates that formula-shaped specification is
-compatible with a distributed DataFrame system through its `RFormula`
-transformer, although with semantics that differ from R's (for example,
-frequency-based rather than alphabetical reference levels). PostgresML
-makes a different trade-off again: specification reduces to a task and an
-algorithm name, with every non-label column of the named relation treated
-as a feature — concise, but the statistical model itself is no longer
-something the user states.
+[@meng2016mllib] demonstrates that formula-shaped specification scales,
+though with semantics that differ from R's; PostgresML reduces
+specification to a task and an algorithm name — concise, but the
+statistical model itself is no longer something the user states.
 
 ## Closure: relation-in / relation-out
 
@@ -407,45 +366,24 @@ not a relation, composition stops at the model boundary: the fitted object
 can only be handled by the system's own dedicated functions.
 
 The central design decision of FbSQL is that **the fitted model is a
-relation**. `fit_glm()` returns a single relation with one row per design
-matrix column (`term`, `estimate`, `std_error`, `statistic`, `p_value`,
-and Wald confidence bounds) together with model-level columns (`family`,
-`link`, `formula`, the complete-case counters, `aic`, `deviance`,
-`null_deviance`). The model can be materialized with `CREATE TABLE AS`,
-inspected with `SELECT`, joined, compared across refits, and audited —
-all with ordinary SQL. `predict_glm()` closes the loop: it consumes the
-model relation together with a scoring relation and returns its rows with one
-appended `` `<response>_predicted` `` column. As evidence that this
-relation is a complete representation of the model rather than a projection
-of hidden state, the reference implementation of `predict_glm()` contains
-no R at all: it reconstructs the linear predictor and inverse link in
-PL/pgSQL purely from the coefficient rows and the metadata column.
+relation** — one row per design matrix column, with model-level columns
+alongside, specified in full in the *Language Design* section. The model
+can be materialized, queried, joined, and audited with ordinary SQL, and
+`predict_glm()` closes the loop by consuming that relation together with a
+scoring relation. That the relation is a complete representation of the
+model, rather than a projection of hidden state, is demonstrated by the
+reference implementation itself: its predictor contains no R and computes
+purely from the public relation.
 
-Keeping the output to exactly one relation requires two deliberate
-denormalizations. First, model-level scalars such as `aic` are repeated on
-every row of the coefficient relation. Second, the information needed to
-rebuild the design matrix at prediction time — factor levels, contrasts,
-term structure — is stored in a `metadata` JSONB column, likewise repeated
-on every row. A normalized design would split this into separate
-coefficient, model-summary, and metadata relations, but a multi-relation
-output would give up precisely the closure property on which composition
-rests, so FbSQL accepts the redundancy as an explicit trade-off (revisited
-in the *Discussion* section). Unlike a binary model object, the JSONB
-metadata remains inspectable from SQL — `metadata -> 'xlevels'` answers
-"which factor levels did this model see at training time?" as an ordinary
-query.
-
-Existing systems occupy different points on this spectrum rather than
-simply lacking the property. Spark MLlib preserves closure at the DataFrame
-level rather than the SQL level: `transform()` maps a DataFrame to a
-DataFrame, but the model itself stays a host-language object. Hivemall
-comes closest to relational closure among the systems we compare — its
-trained model is a genuine `(feature, weight)` table — but the features
-are integer indices without term semantics, and prediction must be
-assembled by hand from an explode, a join against the model table, and an
-explicitly written link function. MADlib and PostgresML rely on procedural
-interfaces: training writes state under a given name, and prediction is a
-scalar function that refers back to it.
+Keeping the output to exactly one relation costs two deliberate
+denormalizations — model-level scalars and the `metadata` JSONB column are
+repeated on every row — a trade-off the *Language Design* section
+specifies and the *Discussion* section weighs. Unlike a binary model
+object, the JSONB metadata remains inspectable from SQL. Existing systems
+occupy different points on this spectrum rather than simply lacking the
+property — closure at the DataFrame level in Spark, a model table without
+term semantics in Hivemall, procedural interfaces in MADlib and PostgresML
+— as reviewed in the previous section.
 
 ## Order independence
 
@@ -454,10 +392,8 @@ Relations are unordered, and a query result carries no row order unless an
 first concerns row order: FbSQL guarantees nothing about the row order of
 the model relation, so `predict_glm()` matches coefficients to terms
 by name and cross-checks the set of terms against the `coef_terms` metadata
-field, never by position. The contrast is MADlib's model representation,
-which stores coefficients, standard errors, and *p* values as parallel
-arrays without term names: position is the only semantics, and any
-downstream use depends on reconstructing the training-time column order.
+field, never by position — the contrast is MADlib's parallel coefficient
+arrays, where position is the only semantics.
 The second consequence concerns argument order. Statistical functions
 accumulate arguments quickly (`relation`, `formula`, `family`, and in the
 future offsets, weights, or tuning parameters), and positional calls become
@@ -470,14 +406,12 @@ this limitation in the *Discussion* section.
 ## NULL semantics
 
 SQL treats NULL as *unknown* under a three-valued logic, and NULLs
-propagate through expressions. The statistical counterpart is missing data,
-and existing systems answer the question independently of SQL's convention,
-each in a different way: PostgresML raises a hard error when a feature is
-NULL at prediction time; Spark's default pipeline fails at `transform()`
-while its `handleInvalid = "skip"` option silently drops rows, changing the
-granularity of the output; H2O-3 [@h2o] imputes column means by default.
-Each choice is defensible in its own context, but none follows from the
-semantics of the surrounding query language.
+propagate through expressions. The statistical counterpart is missing
+data, and existing systems answer independently of SQL's convention — hard
+errors (PostgresML), silently dropped rows (Spark's
+`handleInvalid = "skip"`), default mean imputation (H2O-3 [@h2o]) —
+choices defensible in context, but none following from the semantics of
+the surrounding query language.
 
 FbSQL aligns the two traditions where they already agree. At fitting time
 it performs complete-case analysis, exactly matching the `na.omit` default
@@ -492,19 +426,14 @@ else in SQL.
 
 ## From glm to a family of modeling functions
 
-The five principles, not the estimator, define FbSQL. `glm()` was chosen as
-the proof of concept because it is small enough to specify completely and
-rich enough to exercise every principle — formulas, factors, links, missing
-data, and inference columns. Nothing in this section is specific to
-generalized linear models: for any future `fit_xxx()`, the design question
-each principle poses is the same, culminating in what we call the *Minimum
-Atomic Relation* question — what is the smallest relation that supports
-both the interpretation of a fitted model and the reconstruction of its
-predictions? The *Discussion* section sketches answers for tree ensembles
-(`fit_rf()`, `fit_lgbm()`, `fit_xgb()`), whose fitted models are naturally
-relations over split rules rather than coefficients. The claim of this
-paper is the language design; the estimator behind `fit_glm()` is
-deliberately ordinary.
+The five principles, not the estimator, define FbSQL: `glm()` was chosen
+as the proof of concept because it is small enough to specify completely
+and rich enough to exercise every principle. For any future `fit_xxx()`,
+each principle poses the same design question, culminating in the *Minimum
+Atomic Relation* question that the next section states precisely and the
+*Discussion* section extends to tree ensembles. The claim of this paper is
+the language design; the estimator behind `fit_glm()` is deliberately
+ordinary.
 
 # FbSQL Language Design
 
@@ -584,13 +513,11 @@ performed by the user. `family` names the error distribution, with the
 canonical link implied in the proof of concept (gaussian/identity,
 binomial/logit).
 
-The call style is part of the specification: FbSQL documents named-argument
-invocation (`relation => ...`, `formula => ...`) as its normative form.
-Statistical functions accumulate arguments, and named notation keeps calls
-order independent and self-documenting as the list grows — the argument-
-order half of the order-independence principle. Named notation is
-PostgreSQL and Oracle syntax rather than standard SQL, a point we return to
-in the *Discussion* section.
+The call style is part of the specification: named-argument invocation
+(`relation => ...`, `formula => ...`) is the normative form, applying the
+order-independence principle to arguments as the list grows. The notation
+is PostgreSQL and Oracle syntax rather than standard SQL, a point we
+return to in the *Discussion* section.
 
 ## Relation representation of statistical models
 
@@ -1366,21 +1293,16 @@ limitation is real for users with large relations.
 ## Future work
 
 The directions that follow are research directions, not a roadmap. The
-language–engine separation invites *alternative engines*: a C
-implementation of the fitting path, GPU solvers, or distributed execution
-— including the possibility of delegating estimation to existing
-in-database engines such as MADlib's [@hellerstein2012madlib] behind the
-unchanged relation specification — with conformance in every case a
-testable property against the conformance suite rather than a claim. The
-estimator surface can grow along the lines sketched above,
-first to the remaining GLM families and then to tree ensembles realizing
-the node-grain atomic relation. On the language side, the open questions
-are the ones acknowledged above: call syntax that a future standard could
-bless, and an output-typing mechanism that makes the column definition
-list unnecessary. Finally, distribution: releasing the extension through
-PGXN and archiving the replication material places both the language and
-its evidence where the PostgreSQL and research communities, respectively,
-expect to find them.
+language–engine separation invites *alternative engines* — C, GPU, or
+distributed implementations, including delegation to existing in-database
+estimators such as MADlib's [@hellerstein2012madlib] — whose conformance
+is in every case testable against the suite rather than arguable. The
+estimator surface can grow to the remaining GLM families and then to the
+node-grain tree-ensemble relations sketched above; the open language
+questions are the call syntax a future standard could bless and an
+output-typing mechanism that removes the column definition list. Finally,
+a PGXN release and archived replication material place the language and
+its evidence where their communities expect to find them.
 
 # Conclusion
 
