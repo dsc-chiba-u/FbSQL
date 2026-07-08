@@ -6,6 +6,62 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: Figure 1(System Overview)の作成
+
+### Summary
+
+- **Figure 1(system overview)を3形式で作成**: 生成ソースの R(grid)
+  スクリプト + そこから出力した SVG / PDF(ベクター)+ 手編集用の
+  .drawio ソース。本文は無変更
+- 作図方針: SVG→PDF 変換ツールが環境に無い(rsvg / inkscape / cairosvg
+  不在)ため、**R grid で作図し同一ソースから svg() と cairo_pdf() を
+  両出力**する方式を採用(fbsql-paper イメージ内で再生成可能 =
+  再現性方針と一致)。drawio は同レイアウトを手書き XML で用意し
+  well-formedness を検証済み
+- 図の内容: 上層 = **FbSQL — the language**("every arrow is a relation")
+  に Training relation → fit_glm() → **Model relation**(中央・橙・最太枠。
+  term 行のミニ表 + metadata 帯 + "queryable · joinable · auditable ·
+  self-contained")→ predict_glm()(Scoring relation が上から合流)→
+  Prediction relation。下層 = 破線の **Reference implementation —
+  PostgreSQL extension**("replaceable engine: the SQL above never
+  changes")に PL/R → stats::glm() と PL/pgSQL — no R、中央に
+  "future engines: C · GPU · distributed"。層間は破線コネクタ +
+  "language / engine boundary" 注記。**PL/R より Model relation が
+  目立つ**構成(指示どおり)
+- Caption(2〜4文)を執筆し、図を本文へ配線するまでの置き場として
+  R スクリプト冒頭コメントに保存
+- `paper/README.md` に Figures 節を追記(生成ソース方式、再生成
+  コマンド、drawio の扱い、「実験由来の図は experiments 側」の分担)
+- 生成 PDF を目視確認(レイアウト崩れなし)
+
+### Changed Files
+
+- `paper/figures/figure1_system_overview.R` / `.svg` / `.pdf` / `.drawio`: 新規
+- `paper/README.md`: Figures 節を追記
+
+### Validation
+
+- R スクリプト実行 → SVG / PDF 生成成功、PDF を目視確認
+- drawio XML の well-formedness を python minidom で確認
+- 本文(paper.Rmd)無変更のためビルドへの影響なし
+
+### Known Issues
+
+- paper/ に macOS の .DS_Store / ._.DS_Store が untracked で存在
+  (コミットには含めていない。必要なら .gitignore 追加を検討)
+- Figure 1 はまだ本文に取り込んでいない(paper.Rmd の TODO コメントは
+  そのまま。取込み時に caption をスクリプトコメントから移す)
+
+### Next Step
+
+- Figure 2(running example)の作成、以後 Figure 3・4 → Table 2 と
+  比較表の取込み → 図の本文配線
+
+Commit: `Add system overview figure`(本エントリを含むコミット)。
+push 後の `git status`: .DS_Store 系を除き clean。
+
+---
+
 ## 2026-07-08: Conclusion 章の初稿執筆 — 本文完成
 
 ### Summary

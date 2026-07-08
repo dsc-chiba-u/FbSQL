@@ -50,6 +50,23 @@ Two pipelines render the same `paper.Rmd` (fbrglm pattern):
   html output block. JSS class assets come from the rticles installation
   and are not committed.
 
+## Figures
+
+Manuscript figures are vector graphics, kept in three forms per figure: an
+R (grid) script that is the generating source, plus the committed SVG and
+PDF it produces. Regenerate inside the pinned paper image, e.g.:
+
+```bash
+docker run --rm -u "$(id -u):$(id -g)" -v "$PWD":/paper -w /paper \
+    fbsql-paper Rscript figures/figure1_system_overview.R
+```
+
+A `.drawio` source with the same layout is kept alongside for manual
+editing in diagrams.net; if a figure is reworked there, export SVG/PDF from
+draw.io and treat the `.drawio` file as the new source of truth for that
+figure. Conceptual figures (1–4) are drawn for the paper here; any figure
+derived from experimental results belongs to FbSQL-experiments.
+
 ## Building
 
 The build environment is pinned by `paper/Dockerfile`
