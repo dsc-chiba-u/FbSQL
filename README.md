@@ -33,15 +33,18 @@ FROM fbsql.fit_glm(
   `term`, `estimate`, `std_error`, `statistic`, `p_value`, `conf_low_95`,
   `conf_high_95` (Wald), plus model-level columns repeated on every row:
   `family`, `link`, `formula`, `n_obs`, `n_used`, `n_dropped`, `aic`,
-  `deviance`, `null_deviance`.
+  `deviance`, `null_deviance`, and `metadata`.
+- The `metadata` jsonb column records what the future `predict_glm()` needs to
+  rebuild the design matrix (response, term labels, variable classes, factor
+  levels, contrasts, coefficient names) — inspectable from SQL, e.g.
+  `metadata -> 'xlevels'`.
 - The R model object never leaves the function; results are verified against
   R's `stats::glm()` in the regression tests (`scripts/parity_reference.R`).
 
 ## Not yet implemented
 
-- `predict_glm()` — the fit-side design is settled (a JSONB `metadata` column
-  carrying factor levels, contrasts, and term information will be added to the
-  `fit_glm()` output next); see `docs/mvp-design.md` for the schema.
+- `predict_glm()` — the fit side is ready (the `metadata` column above); the
+  prediction function itself is next. See `docs/mvp-design.md` for the design.
 - Other families, non-canonical links, `weights` / `offset`.
 
 ## Development

@@ -21,9 +21,9 @@
 
 ## MVP 後(実装順)
 
-- [ ] `fit_glm()` に `metadata jsonb` 列(17列目)を実装 + `fit_glm_metadata` テスト新設
-      (設計確定済み: `docs/mvp-design.md` §4。predict_glm の前提。次回の実装タスク)
-- [ ] `predict_glm()` MVP(数値のみ → factor 対応の順。metadata 列実装が先行条件)
+- [x] `fit_glm()` に `metadata jsonb` 列(17列目)を実装 + `fit_glm_metadata` テスト新設
+      — 2026-07-08 完了: meta_version 1 の全フィールド、既存テストは expected 無変更で通過
+- [ ] `predict_glm()` MVP(数値のみ → factor 対応の順。前提の metadata 列は実装済み)
 - [ ] PL/R エラーの1行目(`R interpreter expression evaluation error`)を整形できるか調査
       (メッセージ本体は DETAIL に出ており実害は小さい。優先度低)
 - [ ] family 追加(poisson → Gamma → その先は論文スコープと相談)

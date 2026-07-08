@@ -6,6 +6,56 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: fit_glm() に metadata jsonb 列を実装(17列目)
+
+### Summary
+
+- 確定済みスキーマ(meta_version 1)通りに `metadata jsonb` 列を実装。全係数行に
+  同一の JSONB が入る(DISTINCT で1行になることをテストで検証)
+- フィールド: meta_version / response / term_labels / intercept / data_classes /
+  xlevels / contrasts / coef_terms。すべて R の fit オブジェクトから取得
+  (`terms(fit)` の各属性、`fit$xlevels`、`fit$contrasts`、`names(coef(fit))`)
+- PL/R 実行環境に jsonlite がないため、JSON は base R で手組み(エスケープ関数付き)。
+  jsonb がキー順を正規化するため出力は決定的で pg_regress 安定
+- 数値のみモデルでは xlevels / contrasts が空オブジェクト `{}` になることを検証
+- **既存6テストは expected 無変更で通過**(全テストが明示的列リストで SELECT している
+  ため。設計時の予測通り)
+
+### Changed Files
+
+- `sql/fbsql--0.1.0.sql`: `fbsql.glm_fit` に `metadata jsonb` 追加、`fit_glm()` に
+  JSON 構築ロジック(esc / jstr / jarr / jobj ヘルパー + terms 属性の収集)
+- `test/sql/fit_glm_metadata.sql` / expected: 新規(jsonb_pretty 全体、`->`/`->>`
+  個別フィールド、数値のみモデルの空オブジェクト、計4クエリ)
+- `Makefile`: REGRESS に fit_glm_metadata 追加
+- `README.md`: 出力列に metadata を追記、predict_glm の記述を「fit側は準備完了」に更新
+- `docs/mvp-design.md`: §3・§4 を実装済みに更新
+- `TODO.md`: metadata タスク完了化
+
+### Validation
+
+- factor 込みモデル(y ~ x1 + gender)で全フィールドが設計通りの値:
+  response=y, term_labels=["x1","gender"], coef_terms=["(Intercept)","x1","genderM",
+  "genderOther"], xlevels={"gender":["F","M","Other"]}, contrasts=contr.treatment,
+  data_classes={y:numeric, x1:numeric, gender:factor}
+- `make installcheck` → **All 7 tests passed**(既存6 + fit_glm_metadata)
+- `scripts/docker-installcheck.sh`(CI同一経路)→ 成功
+
+### Known Issues
+
+- metadata の JSON 手組みは将来フィールドが増えると煩雑になる。R パッケージ追加
+  (jsonlite)はイメージ肥大とのトレードオフなので、必要になった時点で判断
+
+### Next Step
+
+- `predict_glm()` MVP の実装(数値のみ → factor 対応の順)。入力: モデル relation +
+  予測対象 relation、出力: `<response>_predicted` 列を持つ relation
+
+Commit: `Add fit_glm metadata column`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: predict_glm() に向けた metadata 設計の確定(文書のみ)
 
 ### Summary
