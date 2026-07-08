@@ -1,0 +1,5 @@
+# pg_regress output (Makefile: REGRESS_OPTS --outputdir=test)
+test/results/
+test/log/
+test/regression.diffs
+test/regression.out

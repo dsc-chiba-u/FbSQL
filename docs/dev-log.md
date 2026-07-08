@@ -6,6 +6,51 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: PostgreSQL Extension 最小骨格の作成
+
+### Summary
+
+- `CREATE EXTENSION fbsql;` が通る最小骨格(control / PGXS Makefile / install script)を作成
+- `fbsql` スキーマと、動作確認用のダミー関数 `fbsql.version()`('FbSQL development version' を返す)のみを定義
+- pg_regress による回帰テスト基盤を稼働(テスト1本: `SELECT fbsql.version();`)
+- CI を「イメージbuild + make install + installcheck」まで拡張
+- `fit_glm()` / PL/R / R コードには未着手(意図的)
+
+### Changed Files
+
+- `fbsql.control`: extension 定義(default_version 0.1.0、relocatable=false)
+- `Makefile`: PGXS。`REGRESS` + `REGRESS_OPTS --inputdir=test --outputdir=test`
+- `sql/fbsql--0.1.0.sql`: `CREATE SCHEMA fbsql` + `fbsql.version()`
+- `test/sql/fbsql_version.sql` / `test/expected/fbsql_version.out`: pg_regress テスト
+- `scripts/docker-installcheck.sh`: 一時コンテナで make / install / installcheck を一括実行(CIと共用)
+- `.gitignore`: pg_regress 出力(`test/results/` 等)を除外
+- `.github/workflows/docker-build.yml`: installcheck ステップ追加
+- `docs/development.md`: Extension のビルド・テスト手順とテスト追加手順を追記
+- `TODO.md`: 骨格タスクを完了化
+
+### Validation
+
+- コンテナ内で `make` → `make install` → **成功**
+- `CREATE EXTENSION fbsql;` → **成功**、`SELECT fbsql.version();` → `FbSQL development version`
+- `make installcheck`(pg_regress) → **All 1 tests passed**
+- `scripts/docker-installcheck.sh` 単体でも通しで成功(CIと同一経路)
+
+### Known Issues
+
+- `\dx` 上の extension 登録スキーマは public(関数実体は fbsql スキーマ)。関数の
+  名前空間方針(`fbsql.fit_glm` vs public の `fit_glm`)は TODO.md の未決事項のまま
+- CI は GitHub Actions 上での成功をまだ確認していない(push 後に要確認)
+
+### Next Step
+
+- gaussian のみの `fit_glm()` を PL/R で実装(control に `requires = 'plr'` 追加)
+- `t_gaussian` fixture の pg_regress テスト + `scripts/parity_reference.R` で R と丸め一致確認
+
+Commit: `Add PostgreSQL extension skeleton`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: Docker開発環境(PostgreSQL + PL/R + R)の構築
 
 ### Summary

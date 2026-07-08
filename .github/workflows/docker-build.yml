@@ -7,9 +7,11 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  build-and-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Build development image
         run: docker build -t fbsql-dev -f docker/Dockerfile .
+      - name: Install extension and run pg_regress
+        run: scripts/docker-installcheck.sh

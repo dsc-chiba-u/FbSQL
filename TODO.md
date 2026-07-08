@@ -6,7 +6,8 @@
 
 - [x] `docker/Dockerfile`: PostgreSQL + PL/R + R の開発環境(`CREATE EXTENSION plr` が通ること)
       — 2026-07-08 検証済み: PostgreSQL 16.14 + PL/R 8.4.8.6 + R 4.2.2(`docs/development.md`)
-- [ ] `fbsql.control` + `Makefile`(PGXS)+ `sql/fbsql--0.1.0.sql` の骨組み(`CREATE EXTENSION fbsql`)
+- [x] `fbsql.control` + `Makefile`(PGXS)+ `sql/fbsql--0.1.0.sql` の骨組み(`CREATE EXTENSION fbsql`)
+      — 2026-07-08 完了: fbsql.version() ダミー関数 + pg_regress 1本 + CI組込み済み
 - [ ] `fit_glm()` gaussian 実装 + `t_gaussian` の pg_regress テスト + `scripts/parity_reference.R`
 - [ ] `fit_glm()` binomial 対応 + `t_binomial` テスト
 - [ ] NULL / Complete Case テスト(`t_nulls`: n_obs / n_used / n_dropped の検証)

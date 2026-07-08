@@ -1,0 +1,6 @@
+# FbSQL extension control file
+comment = 'FbSQL: closure-preserving formula-based statistical modeling in SQL'
+default_version = '0.1.0'
+# The install script creates and references the fbsql schema explicitly,
+# so the extension cannot be relocated with ALTER EXTENSION SET SCHEMA.
+relocatable = false
