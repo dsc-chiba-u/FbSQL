@@ -31,21 +31,6 @@ FROM fbsql.predict_glm(
 ) AS p(id integer, x double precision, y_predicted double precision)
 ORDER BY id;
 
--- Binomial models are not supported by this stage.
-CREATE TEMP TABLE t_train_b (y integer, x double precision);
-INSERT INTO t_train_b VALUES
-    (0, 0.1), (0, 0.4), (1, 0.8), (0, 1.0), (1, 1.2), (0, 1.5),
-    (1, 1.8), (1, 2.0), (0, 2.2), (1, 2.5), (1, 2.8), (0, 3.0);
-CREATE TEMP TABLE t_model_b AS
-SELECT * FROM fbsql.fit_glm(
-    relation => $$ SELECT y, x FROM t_train_b $$,
-    formula  => 'y ~ x',
-    family   => 'binomial');
-SELECT * FROM fbsql.predict_glm(
-    relation => $$ SELECT x FROM t_train_b $$,
-    model    => $$ SELECT * FROM t_model_b $$
-) AS p(x double precision, y_predicted double precision);
-
 -- Factor predictors are not supported by this stage.
 CREATE TEMP TABLE t_train_f (y double precision, g text);
 INSERT INTO t_train_f VALUES (1.0, 'a'), (2.0, 'b'), (1.5, 'a'), (2.5, 'b');

@@ -43,8 +43,10 @@ FROM fbsql.fit_glm(
 
 `fbsql.predict_glm()` scores a relation from a fitted model relation — no R
 involved: predictions are computed in PL/pgSQL from the coefficients and
-`metadata` alone. Currently numeric predictors + gaussian family only. It
-returns `SETOF record`, so attach a column definition list:
+`metadata` alone. Currently supported (numeric predictors only):
+gaussian/identity (linear predictor) and binomial/logit (probabilities, as
+R's `predict(..., type = "response")`). It returns `SETOF record`, so attach
+a column definition list:
 
 ```sql
 SELECT *
@@ -59,8 +61,9 @@ NULL predictors get a NULL prediction.
 
 ## Not yet implemented
 
-- `predict_glm()` for binomial models and factor predictors (including the
-  planned `on_new_levels` policy for unseen factor levels).
+- `predict_glm()` for factor predictors (including the planned
+  `on_new_levels` policy for unseen factor levels) and a prediction `type`
+  argument.
 - Other families, non-canonical links, `weights` / `offset`.
 
 ## Development

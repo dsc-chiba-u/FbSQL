@@ -85,3 +85,13 @@ cat("\n== predict: y ~ x on t_new (NA row must predict NA) ==\n")
 fit_p <- stats::glm(y ~ x, data = t_train, family = stats::gaussian())
 print(cbind(t_new,
             y_predicted = round(stats::predict(fit_p, newdata = t_new), 4)))
+
+# ---- predict_glm() stage 2 reference (test/sql/predict_glm_binomial.sql) ----
+t_new_binomial <- data.frame(id = c(1L, 2L, 3L), x = c(0.5, 1.5, 2.5))
+
+cat("\n== predict: binomial y ~ x on t_new_binomial (type = 'response') ==\n")
+fit_pb <- stats::glm(y ~ x, data = t_binomial, family = stats::binomial())
+print(cbind(t_new_binomial,
+            y_predicted = round(stats::predict(fit_pb,
+                                               newdata = t_new_binomial,
+                                               type = "response"), 4)))

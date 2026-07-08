@@ -6,6 +6,56 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: predict_glm() 第2段階 — binomial/logit の確率予測
+
+### Summary
+
+- `predict_glm()` を binomial/logit に対応(数値説明変数のみ)。線形予測子に
+  逆リンク `1/(1+exp(-lp))` を適用し、R の `predict(type = "response")` 相当の
+  確率を返す
+- family/link の組を検証する方式に変更(gaussian/identity と binomial/logit のみ許可、
+  それ以外は組を明示したエラー)
+- `data_classes` の numeric チェックから**応答列を除外**: 応答は予測対象 relation に
+  不要で、binomial では boolean(logical)応答が正当なため(Running Example の
+  churn_flag)。boolean 応答モデルでの予測もテスト化
+- 既存の predict_glm_numeric テストから「binomial はエラー」ケースを削除
+  (成功ケースに変わったため新テストへ移動)
+- 実装は引き続き PL/pgSQL・R 不使用・API 変更なし
+
+### Changed Files
+
+- `sql/fbsql--0.1.0.sql`: link 取得、family/link 検証、逆リンク適用、応答列除外
+- `test/sql/predict_glm_binomial.sql` / expected: 新規(整数応答 + boolean 応答の2モデル)
+- `test/sql/predict_glm_numeric.sql` / expected: binomial エラーケースを削除
+- `Makefile`: REGRESS に predict_glm_binomial 追加
+- `scripts/parity_reference.R`: binomial predict 参照セクション追加
+- `README.md` / `docs/mvp-design.md` / `TODO.md`: 対応状況の更新
+
+### Validation
+
+- t_binomial(12行)で学習 → t_new_binomial の予測確率:
+  x=0.5 → **0.3315**、x=1.5 → **0.4826**、x=2.5 → **0.6370** —
+  R の `predict(glm(y ~ x, family=binomial()), newdata, type="response")` と一致
+- boolean 応答(y::boolean)で学習したモデルでも同一の確率
+- `make installcheck` → **All 9 tests passed**
+- `scripts/docker-installcheck.sh`(CI同一経路)→ 成功
+
+### Known Issues
+
+- 極端な線形予測子(|lp| が非常に大きい)では float8 の exp() がオーバーフローしうる
+  (実データ規模では非現実的。必要になれば飽和処理を検討)
+- prediction `type` 引数(link スケール等)は未対応(意図的)
+
+### Next Step
+
+- `predict_glm()` 第3段階: factor 対応 — metadata の xlevels / contrasts を消費して
+  ダミー列を SQL 式で再構築、`on_new_levels => 'error'|'na'` 引数と novel level 検出
+
+Commit: `Add binomial predict_glm support`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: predict_glm() MVP 第1段階(数値・gaussian・R不使用)
 
 ### Summary

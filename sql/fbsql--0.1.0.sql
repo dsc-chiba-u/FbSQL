@@ -164,7 +164,8 @@ AS $fit_glm$
     )
 $fit_glm$;
 
--- predict_glm() MVP (stage 1): numeric predictors, gaussian family only.
+-- predict_glm() MVP (stage 2): numeric predictors; gaussian/identity and
+-- binomial/logit (probabilities, R's type = "response").
 -- Deliberately implemented WITHOUT R: predictions are computed from the
 -- coefficient relation plus its metadata column alone, demonstrating that
 -- the relation really is a complete model representation.
@@ -184,6 +185,7 @@ AS $predict_glm$
 DECLARE
     meta   jsonb;
     fam    text;
+    lnk    text;
     coefs  jsonb;
     n_rows bigint;
     expr   text := '0';
@@ -196,8 +198,8 @@ BEGIN
         RAISE EXCEPTION 'predict_glm: model must be a non-empty SQL string';
     END IF;
 
-    EXECUTE format('SELECT m.metadata, m.family FROM (%s) m LIMIT 1', model)
-        INTO meta, fam;
+    EXECUTE format('SELECT m.metadata, m.family, m.link FROM (%s) m LIMIT 1', model)
+        INTO meta, fam, lnk;
     IF meta IS NULL THEN
         RAISE EXCEPTION 'predict_glm: model relation returned no rows or has NULL metadata';
     END IF;
@@ -205,14 +207,18 @@ BEGIN
         RAISE EXCEPTION 'predict_glm: unsupported metadata version: %',
             meta ->> 'meta_version';
     END IF;
-    IF fam IS DISTINCT FROM 'gaussian' THEN
-        RAISE EXCEPTION 'predict_glm: family ''%'' is not supported yet (supported families: gaussian)',
-            fam;
+    IF NOT ((fam = 'gaussian' AND lnk = 'identity')
+            OR (fam = 'binomial' AND lnk = 'logit')) THEN
+        RAISE EXCEPTION 'predict_glm: family ''%'' with link ''%'' is not supported yet (supported: gaussian/identity, binomial/logit)',
+            fam, lnk;
     END IF;
     -- R dataClasses maps every numeric SQL column to 'numeric', so any
-    -- other class (factor, logical, ...) is outside this MVP scope.
+    -- other class (factor, logical, ...) is outside this MVP scope. The
+    -- response column is exempt: it is absent from the scoring relation
+    -- anyway, and a binomial response is legitimately logical (boolean).
     IF EXISTS (SELECT 1 FROM jsonb_each_text(meta -> 'data_classes') dc
-               WHERE dc.value <> 'numeric') THEN
+               WHERE dc.value <> 'numeric'
+                 AND dc.key <> meta ->> 'response') THEN
         RAISE EXCEPTION 'predict_glm: only numeric predictors are supported yet (data_classes: %)',
             meta -> 'data_classes';
     END IF;
@@ -242,6 +248,12 @@ BEGIN
                                    coefs ->> term, term);
         END IF;
     END LOOP;
+
+    -- Apply the inverse link: identity is a no-op; logit yields
+    -- probabilities (R's predict(..., type = "response")).
+    IF fam = 'binomial' THEN
+        expr := format('1.0 / (1.0 + exp(-(%s)))', expr);
+    END IF;
 
     RETURN QUERY EXECUTE format(
         'SELECT r.*, (%s)::double precision AS %I FROM (%s) r',

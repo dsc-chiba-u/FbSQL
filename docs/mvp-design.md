@@ -317,10 +317,17 @@ treatment contrast。**この規約こそが predict 時に再現すべき情報
 - **スキーマ安定性**: JSONB 内部スキーマは API の一部になる。`meta_version` で管理し、
   論文にもスキーマを明記する。
 
-### predict_glm() MVP 第1段階(2026-07-08 実装)
+### predict_glm() MVP 第1〜2段階(2026-07-08 実装)
 
-**スコープ**: 数値説明変数のみ・gaussian のみ・intercept あり。binomial / factor /
-novel level / `on_new_levels` は次段階。
+**スコープ**: 数値説明変数のみ・intercept あり。第1段階で gaussian/identity、
+第2段階で binomial/logit(逆リンク `1/(1+exp(-lp))` を適用し、R の
+`predict(type = "response")` 相当の確率を返す)。それ以外の family/link の組は
+明示的にエラー。factor / novel level / `on_new_levels` / type 引数は次段階。
+
+第2段階での仕様補足: `data_classes` の numeric チェックから**応答列は除外**する。
+応答列は予測対象 relation に不要であり、binomial の応答は boolean(logical)が
+正当なため(Running Example の `churn_flag`)。boolean 応答で学習したモデルでの
+予測もテストで検証済み。
 
 **API**: `fbsql.predict_glm(relation text, model text)`。`relation` は予測対象の SQL
 文字列、`model` は `fit_glm()` の出力リレーションを返す SQL 文字列。
