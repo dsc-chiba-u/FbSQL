@@ -28,14 +28,42 @@ case "$TARGET" in
     jss)
         # Render a temporary copy with the rticles jss_article format so
         # the source Rmd (whose active output is html_document) stays
-        # untouched, as in fbrglm's render_jss_pdf.R.
+        # untouched, as in fbrglm's render_jss_pdf.R: the YAML header is
+        # swapped for the JSS-structured form and the class assets are
+        # copied in from the rticles skeleton.
         Rscript - <<'EOF'
 build <- file.path(tempdir(), "fbsql-jss-build")
 dir.create(build, recursive = TRUE, showWarnings = FALSE)
-file.copy(c("paper.Rmd", "references.bib"), build, overwrite = TRUE)
-## TODO: swap the YAML output block to rticles::jss_article on the copy
-## (see fbrglm/scripts/render_jss_pdf.R for the sed-style rewrite) once
-## the manuscript has content worth rendering in JSS form.
+skel <- system.file("rmarkdown", "templates", "jss", "skeleton",
+                    package = "rticles")
+file.copy(file.path(skel, c("jss.cls", "jss.bst", "jsslogo.jpg")),
+          build, overwrite = TRUE)
+file.copy("references.bib", build, overwrite = TRUE)
+
+## Keep the JSS-form metadata below in sync with paper.Rmd's YAML.
+lines <- readLines("paper.Rmd")
+fences <- which(lines == "---")
+body <- lines[(fences[2] + 1L):length(lines)]
+header <- c(
+  "---",
+  "documentclass: jss",
+  "title:",
+  "  formatted: \"FbSQL: A Closure-Preserving Formula-based Extension for Statistical Modeling in SQL\"",
+  "  plain:     \"FbSQL: A Closure-Preserving Formula-based Extension for Statistical Modeling in SQL\"",
+  "  short:     \"FbSQL: Formula-based Statistical Modeling in SQL\"",
+  "author:",
+  "  - name: Koki Tsuyuzaki",
+  "    affiliation: Chiba University and RIKEN",
+  "    email: \\email{koki.tsuyuzaki@gmail.com}",
+  "abstract: >",
+  "  TODO: abstract (kept in sync with paper.Rmd at writing time).",
+  "keywords:",
+  "  formatted: [SQL, PostgreSQL, generalized linear models, formula interface, closure]",
+  "  plain:     [SQL, PostgreSQL, generalized linear models, formula interface, closure]",
+  "bibliography: references.bib",
+  "---")
+writeLines(c(header, body), file.path(build, "paper.Rmd"))
+
 rmarkdown::render(file.path(build, "paper.Rmd"),
                   output_format = rticles::jss_article(),
                   output_file = "paper-jss.pdf")

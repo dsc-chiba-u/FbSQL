@@ -6,6 +6,61 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: 論文ビルド環境の固定 — make html / pdf / jss すべて成功
+
+### Summary
+
+- **`paper/Dockerfile`(rocker/verse:4.4.2 ベース)で論文ビルド環境を固定**し、
+  `make html` を含む3ターゲットすべてを実機で成功させた:
+  `make html`(html_document)、`make pdf`(weasyprint)、
+  **`make jss`(rticles::jss_article + pdflatex で JSS クラスの PDF 生成)**
+- Makefile を Docker ラッパー化(`make image` でビルド、各ターゲットは非rootで
+  コンテナ実行)。実験環境(fbsql-dev)とは完全分離
+- **JSS ビルドの3つの障害を解決**:
+  (1) rocker/verse の TinyTeX に JSS クラスの依存 LaTeX パッケージが不足 —
+  非rootコンテナでは自動導入が効かないため、**イメージビルド時に明示インストール +
+  rticles の JSS skeleton をレンダリングして `tinytex::parse_install()` で残りを
+  焼き込む**方式を確立(orcidlink / pgf / thumbpdf / natbib / grfext 等)。
+  (2) rticles の JSS テンプレートは `documentclass: jss` と構造化 title / keywords を
+  要求 — render.sh の jss ターゲットで**一時コピーの YAML を JSS 形式に書き換える**
+  (fbrglm の render_jss_pdf.R と同方式。ソース Rmd は非改変)。
+  (3) クラス資産(jss.cls / jss.bst / jsslogo.jpg)は rticles の skeleton から
+  ビルドディレクトリへ一時コピー(非コミット)
+- 作業中に **/tmp(ルートFS)が満杯**になり出力キャプチャまで停止 → 検証済み・
+  再取得可能な PostgresML イメージ(15GB)を削除して復旧(必要時は re-pull)
+- paper.Rmd の修正は不要だった(YAML は初期化時のまま html ビルド成功)。本文未執筆
+
+### Changed Files
+
+- `paper/Dockerfile`: 新規(rocker/verse + weasyprint + rticles + JSS用LaTeX焼き込み)
+- `paper/Makefile`: Docker ラッパー化(image / html / pdf / jss / clean)
+- `paper/render.sh`: jss ターゲットを完成(skeleton資産コピー + YAML書き換え + 出力回収)
+- `paper/README.md`: Building 節を実手順(make image → make html 等)に更新
+
+### Validation
+
+- `make html` → **成功**(paper.html 生成)
+- `make pdf` → **成功**(weasyprint、CSS警告のみ)
+- `make jss` → **成功**(paper-jss.pdf、196KB、JSSクラス)
+- `make clean` → 生成物3種 + 中間物を削除
+- `git status` にビルド生成物が残らないことを確認(.gitignore 済み)
+
+### Known Issues
+
+- render.sh 内の JSS 用 YAML(title / author / keywords)は paper.Rmd と手動同期
+  (執筆時に注意。スクリプト内にコメントで明記済み)
+- ディスク残量が逼迫気味(15GB空き)。PostgresML の再検証時はイメージ re-pull が必要
+
+### Next Step
+
+- Design Principles 章から本文執筆を開始(CLAUDE.md の構成案・mvp-design の
+  決定事項・experiments の比較表を素材に)
+
+Commit: `Add paper build environment`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: JSS 論文プロジェクトの初期化(paper/)
 
 ### Summary

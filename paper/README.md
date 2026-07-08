@@ -50,9 +50,25 @@ Two pipelines render the same `paper.Rmd` (fbrglm pattern):
   html output block. JSS class assets come from the rticles installation
   and are not committed.
 
-The build environment is **not** the fbsql-dev image (that is a runtime
-image without rmarkdown/pandoc/LaTeX). TODO: pin a paper-build environment
-(dedicated Dockerfile or renv) once writing starts.
+## Building
+
+The build environment is pinned by `paper/Dockerfile`
+(`rocker/verse:4.4.2` = R + pandoc + rmarkdown + TinyTeX, plus rticles and
+weasyprint). It is deliberately separate from the fbsql-dev runtime image,
+which has none of the publishing toolchain.
+
+```bash
+cd paper
+make image   # build the fbsql-paper docker image (once)
+make html    # render paper.Rmd -> paper.html inside the image
+make pdf     # paper.html -> paper.pdf via weasyprint
+make jss     # rticles::jss_article + pdflatex (submission form)
+make clean   # remove rendered outputs
+```
+
+`make html` mounts this directory into the container, runs
+`rmarkdown::render("paper.Rmd", output_format = "html_document")` as your
+own user, and leaves `paper.html` here.
 
 Rendered outputs (`paper.html`, `paper.pdf`, `paper-jss.pdf`, `paper_files/`)
 are gitignored; regenerate them from source.
