@@ -28,9 +28,6 @@ docker pull ghcr.io/dsc-chiba-u/fbsql:latest
 docker pull koki/fbsql:latest
 ```
 
-<!-- TODO: confirm the Docker Hub namespace (assumed `koki`, as in fbrglm)
-     after the first successful publish run. -->
-
 Start a server and create the extension:
 
 ```bash
