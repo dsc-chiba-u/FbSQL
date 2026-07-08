@@ -163,14 +163,16 @@ Apache Hivemall and H2O-3 with Sparkling Water, the review is *literature
 based*, drawn from the official documentation and recorded claim by claim
 with sources in the companion repository; these systems were not executed,
 and we do not report anything their documentation does not state. A full
-comparison across nineteen design dimensions is maintained as
+comparison across the design dimensions is maintained as
 version-controlled data (`data/related_work.csv`) in `FbSQL-experiments`
-and rendered from it; the present section confines itself to the design
-trade-offs and delegates the dimension-by-dimension detail to that table.
+and rendered from it as Table 1; the present section confines itself to
+the design trade-offs and delegates the dimension-by-dimension detail to
+that table.
 
-<!-- TODO(table wiring): import the condensed comparison table as
-     tables/related_work.tex (generated in FbSQL-experiments) and replace
-     the prose pointer above with a numbered Table cross-reference. -->
+```{r tab1, echo=FALSE, results='asis'}
+cat(readLines(if (knitr::is_latex_output())
+    "tables/related_work.tex" else "tables/related_work.md"), sep = "\n")
+```
 
 ## A taxonomy of SQL-oriented machine learning systems
 
@@ -616,6 +618,13 @@ of type `fbsql.glm_fit` with seventeen columns at two granularities:
 | `aic`, `deviance`, `null_deviance` | model | model-level fit measures |
 | `metadata` | model | JSONB; everything prediction needs (below) |
 
+<!-- The uncaptioned longtable above still steps LaTeX's table counter;
+     undo that so the numbered tables stay Table 1 (related work) and
+     Table 2 (customer dataset). No-op in HTML output. -->
+```{=latex}
+\addtocounter{table}{-1}
+```
+
 One row corresponds to one design matrix column — `(Intercept)`, each
 numeric predictor, each non-reference factor level — so the churn model of
 Figure 2 is a four-row relation with terms `(Intercept)`, `age`,
@@ -928,7 +937,7 @@ model relation; the model relation and the scoring rows feed
 
 ## Dataset
 
-The example uses a single `customer` table with five columns:
+The example uses a single `customer` table (Table 2) with five columns:
 `customer_id` (`VARCHAR`), the customer identifier; `created_at`
 (`TIMESTAMP`), when the customer signed up; `age` (`INTEGER`) and `gender`
 (`VARCHAR`, taking the values `F`, `M`, and `Other` in the training data),
@@ -942,10 +951,10 @@ gender (`Nonbinary`) that does not occur in the 2025 training data. The
 scenario is the everyday one: learn from last year's customers, score this
 year's.
 
-<!-- TODO(Table 2): the customer table in full (12 training rows + 5
-     scoring rows), flagging the c104 NULL and the c105 unseen level;
-     source data is literal in test/sql/running_example.sql and
-     FbSQL-experiments/data/customer.csv. -->
+```{r tab2, echo=FALSE, results='asis'}
+cat(readLines(if (knitr::is_latex_output())
+    "tables/customer_dataset.tex" else "tables/customer_dataset.md"), sep = "\n")
+```
 
 ## Model fitting
 

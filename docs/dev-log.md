@@ -6,6 +6,71 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: 論文 Table assets の生成(experiments 側からの自動生成)
+
+### Summary
+
+- **Table 1(related work)と Table 2(customer dataset)を
+  FbSQL-experiments 側から自動生成する体制を確立**。論文側
+  (`paper/tables/`)には生成結果のみを置き、手編集しない方針を README
+  に明記(生成コメントを各ファイル先頭に付与)
+- 生成パイプライン: `data/related_work.csv` / `data/customer.csv` →
+  `FbSQL-experiments/scripts/51_generate_paper_tables.R`(両リポジトリを
+  マウントし FBSQL_ROOT で出力先指定)→ `paper/tables/*.{tex,md}`
+  (.tex = LaTeX/JSS 用、.md = HTML 開発ビルド用。paper.Rmd のチャンクが
+  出力形式で自動選択)
+- **Table 1 は紙面向けに縮約**: 17次元 × 6システム、セルは短い判定語
+  (yes / no / partial / TBD 等)+ 略記。**情報は削らず**、完全なセル文は
+  CSV に残る旨と実測/文献の証拠区分を表脚注に記載。縮約は script 内で
+  キュレーションし、**ドリフト検知**(縮約セルの判定語が CSV の先頭語と
+  不一致なら生成を停止)で CSV と結合 — 初回実行で PostgresML の
+  reproducibility セルの不整合を実際に検出し修正
+- Table 2 は customer 17行を train(2025)/ scoring(2026)で
+  midrule 区切り、NULL を明示。**R parity 表は省略**(本文 Evaluation が
+  13/13 を明記しており表は不要と判断。README にその旨記録)
+- **番号ズレの発見と修正**: Language Design の17列仕様表(キャプション
+  なしの longtable)が LaTeX の table カウンタを1つ進め、customer 表が
+  Table 3 になっていた → 仕様表直後に LaTeX 出力専用の
+  `\addtocounter{table}{-1}`(HTML では no-op)を挿入して Table 1 / 2 に
+  整合。**教訓: pandoc の無キャプション longtable もカウンタを進める**
+- paper.Rmd の変更は最小限: Table 1 / 2 の include チャンク、prose への
+  番号参照2箇所("rendered from it as Table 1" / "customer table
+  (Table 2)")、counter 補正のみ。render.sh に tables/ コピーを追加
+
+### Changed Files
+
+- `paper/tables/{related_work,customer_dataset}.{tex,md}`: 新規(生成物)
+- `paper/paper.Rmd`: 表チャンク配線 + Table 番号参照 + counter 補正
+- `paper/render.sh`: tables/ を jss ビルドへコピー
+- `paper/README.md`: 表は experiments 側から生成される旨を明記、
+  assets 表を更新
+- (FbSQL-experiments 側)`scripts/51_generate_paper_tables.R` 新規、
+  README に Paper tables 節 — 別コミット
+
+### Validation
+
+- `make html` → 成功(Table 1 / 2 が markdown 表で表示)
+- `make pdf` → 成功(weasyprint、警告のみ)
+- `make jss` → 成功。**Table 1(p.4)と Table 2(p.20)のページを画像
+  レンダリングで目視確認 — 幅超過・崩れなし**、番号も Table 1 / 2 で整合
+- `make clean` → 成功、生成 tex/md はコミット対象、ビルド出力は残らない
+
+### Known Issues
+
+- 無キャプション longtable のカウンタ問題は `\addtocounter` で局所補正
+  している。今後キャプションなしの表を追加する場合は同じ補正が必要
+  (または表にキャプションを付ける)
+
+### Next Step
+
+- JSS 定型節(Computational details / Acknowledgments / Replication
+  material)の執筆 — これで投稿形が整う
+
+Commit: `Generate paper tables`(本エントリを含むコミット)。
+push 後の `git status`: .DS_Store 系を除き clean。
+
+---
+
 ## 2026-07-08: Figure 2〜4 の作成と全図の本文配線
 
 ### Summary

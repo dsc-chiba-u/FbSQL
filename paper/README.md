@@ -34,8 +34,8 @@ paper/
 
 | Asset | Source | Status |
 |---|---|---|
-| `tables/related_work.tex` | FbSQL-experiments `results/tables/related_work.md` (6 systems x 19 columns), converted/condensed for print | TODO |
-| `tables/running_example.tex` | FbSQL-experiments `results/summary/running_example_parity.csv` + the per-system summaries | TODO |
+| `tables/related_work.{tex,md}` | generated from FbSQL-experiments `data/related_work.csv` (condensed for print; full cells stay in the CSV) | generated |
+| `tables/customer_dataset.{tex,md}` | generated from FbSQL-experiments `data/customer.csv` (R parity needs no table: 13/13 agreement is stated in the text) | generated |
 | `figures/figure1_system_overview.*` | drawn for the paper (language layer vs replaceable engine; model relation central) | done |
 | `figures/figure2_running_example.*` | drawn for the paper (2025 fit -> 2026 predict on the customer table) | done |
 | `figures/figure3_implementation_layers.*` | drawn for the paper (specification / extension / verification layers) | done |
@@ -51,6 +51,20 @@ Two pipelines render the same `paper.Rmd` (fbrglm pattern):
   (`make jss`). Operates on a temporary copy; the source Rmd stays on the
   html output block. JSS class assets come from the rticles installation
   and are not committed.
+
+**Tables are generated, never hand-edited.** Everything under `tables/` is
+written by `FbSQL-experiments/scripts/51_generate_paper_tables.R` (each
+table as `.tex` for the LaTeX builds and `.md` for the HTML build; the Rmd
+picks the right one by output format). To change a table, change the data
+or the generator in FbSQL-experiments and rerun:
+
+```bash
+# from the FbSQL-experiments checkout
+docker run --rm -u "$(id -u):$(id -g)" \
+    -v "$PWD":/exp -v "$(cd ../FbSQL && pwd)":/fbsql \
+    -e FBSQL_ROOT=/fbsql -w /exp fbsql-dev \
+    Rscript scripts/51_generate_paper_tables.R
+```
 
 ## Figures
 
