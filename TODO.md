@@ -27,8 +27,14 @@
       — 2026-07-08 完了: SETOF record + 呼び出し側列定義。R の predict.glm() と一致
 - [x] `predict_glm()` 第2段階: binomial(逆リンク logit)対応
       — 2026-07-08 完了: R の predict(type="response") と一致。boolean 応答モデルも検証
-- [ ] `predict_glm()` 第3段階: factor 対応(xlevels / contrasts の消費、
+- [x] `predict_glm()` 第3段階: factor 対応(xlevels / contrasts の消費、
       `on_new_levels => 'error'|'na'` 引数、novel level 検出)
+      — 2026-07-08 完了: gaussian / binomial とも数値・factor 混在で R と一致。
+      これで Running Example(fit → predict)がコア機能として一通り動作
+- [ ] `predict_glm()` の interaction(`y ~ x * gender`)対応(fit は既に通るため、
+      解釈不能 term の明示エラーで防御中)
+- [ ] `on_new_levels => 'error'` の novel 検出プローブで relation が複数回実行される
+      件の解消(1パス化。volatile な relation での整合性)
 - [ ] PL/R エラーの1行目(`R interpreter expression evaluation error`)を整形できるか調査
       (メッセージ本体は DETAIL に出ており実害は小さい。優先度低)
 - [ ] family 追加(poisson → Gamma → その先は論文スコープと相談)

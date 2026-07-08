@@ -6,6 +6,62 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: predict_glm() 第3段階 — factor 対応と on_new_levels
+
+### Summary
+
+- `predict_glm()` が factor predictor に対応。係数 term(`genderM` 等)を metadata の
+  `xlevels` と突き合わせて `<factor><水準>` に分解し、treatment contrast のダミーを
+  `((r.gender = 'M')::int)` の SQL 式で再構築(引き続き R 不使用)
+- `on_new_levels text DEFAULT 'error'` 引数を追加(fbrglm 踏襲):
+  `'error'` は novel 水準を水準名・既知水準一覧付きでエラー、`'na'` は該当行のみ
+  予測値 NULL。不正な値は明示エラー
+- factor 列 NULL の行は等値比較の NULL 伝播で自然に予測値 NULL(数値列と同一挙動)
+- `contr.treatment` 以外の contrasts、解釈不能な係数 term(交互作用等)は明示エラーで防御
+- gaussian / binomial の両方で数値・factor 混在モデルが R と一致
+- **これで Running Example(churn 予測の fit → predict)がコア機能として一通り動作**
+
+### Changed Files
+
+- `sql/fbsql--0.1.0.sql`: predict_glm を第3段階に拡張(引数追加、term 分類、
+  ダミー再構築、novel 検出プローブ、na 用 CASE ラップ、contrasts 検証)
+- `test/sql/predict_glm_factor.sql` / expected: 新規(7ケース: error/na/正常/引数不正/
+  混在/binomial+factor/NULL行)
+- `test/sql/predict_glm_numeric.sql` / expected: 「factor はエラー」ケースを削除
+  (成功に変わったため)
+- `Makefile`: REGRESS に predict_glm_factor 追加
+- `scripts/parity_reference.R`: factor/mixed/binomial+factor の predict 参照を追加
+- `README.md` / `docs/mvp-design.md` / `TODO.md`: 対応状況更新。新規 TODO 2件
+  (interaction 対応、novel 検出プローブの1パス化)
+
+### Validation
+
+- factor のみ(y ~ gender): F→1.25, M→2.25, Other→2.90, NULL→NULL — R と一致
+- novel 'error': `factor 'gender' has new level 'Unknown' ... (known levels:
+  ["F","M","Other"]); use on_new_levels => 'na' ...`
+- novel 'na': Unknown 行のみ NULL、他は通常予測
+- 混在(y ~ x1 + gender): 1.5333 / 3.6667 / NULL(gender NULL)/ NULL(x1 NULL)— R と一致
+- binomial + factor: F→0.3333, M→0.6667 — R の type="response" と一致
+- `make installcheck` → **All 10 tests passed**
+- `scripts/docker-installcheck.sh`(CI同一経路)→ 成功
+
+### Known Issues
+
+- `on_new_levels => 'error'` の novel 検出は factor ごとの事前プローブクエリのため、
+  relation が複数回実行される(volatile な relation では注意。TODO に1パス化を記録)
+- interaction は fit 側では通るが predict 側は「cannot interpret coefficient term」
+  エラーで防御(TODO に対応を記録)
+
+### Next Step
+
+- コア機能一式が揃ったので、次は品質・公開系: interaction 対応 or META.json/Changes
+  整備(PGXN 準備)or FbSQL-experiments リポジトリ着手、の優先順位付け
+
+Commit: `Add factor predict_glm support`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: predict_glm() 第2段階 — binomial/logit の確率予測
 
 ### Summary

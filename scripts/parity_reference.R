@@ -95,3 +95,49 @@ print(cbind(t_new_binomial,
             y_predicted = round(stats::predict(fit_pb,
                                                newdata = t_new_binomial,
                                                type = "response"), 4)))
+
+# ---- predict_glm() stage 3 reference (test/sql/predict_glm_factor.sql) ----
+# NA factor rows must predict NA (na.pass); novel levels are exercised on
+# the SQL side only (R's predict() errors on them, matching our 'error').
+t_train_factor <- t_factor  # same 6 rows as the fit_glm_factor fixture
+t_new_factor <- data.frame(id = 1:4,
+                           gender = c("F", "M", "Other", NA))
+
+cat("\n== predict: y ~ gender on t_new_factor ==\n")
+fit_pf <- stats::glm(y ~ gender, data = t_train_factor,
+                     family = stats::gaussian())
+print(cbind(t_new_factor,
+            y_predicted = round(stats::predict(fit_pf,
+                                               newdata = t_new_factor,
+                                               type = "response"), 4)))
+
+t_train_mix <- data.frame(
+    y      = c(1.2, 2.3, 3.1, 1.8, 2.9, 3.7, 2.1, 3.3, 4.2),
+    x1     = c(0, 1, 2, 3, 4, 5, 6, 7, 8),
+    gender = c("F", "M", "Other", "F", "M", "Other", "F", "M", "Other")
+)
+t_new_mix <- data.frame(id = 1:4,
+                        x1 = c(2.0, 5.0, 3.0, NA),
+                        gender = c("F", "Other", NA, "M"))
+
+cat("\n== predict: y ~ x1 + gender on t_new_mix ==\n")
+fit_pm <- stats::glm(y ~ x1 + gender, data = t_train_mix,
+                     family = stats::gaussian())
+print(cbind(t_new_mix,
+            y_predicted = round(stats::predict(fit_pm,
+                                               newdata = t_new_mix,
+                                               type = "response"), 4)))
+
+t_train_bf <- data.frame(
+    y      = c(0, 1, 0, 1, 0, 1),
+    gender = c("F", "F", "F", "M", "M", "M")
+)
+t_new_bf <- data.frame(id = 1:2, gender = c("F", "M"))
+
+cat("\n== predict: binomial y ~ gender on t_new_bf (type = 'response') ==\n")
+fit_pbf <- stats::glm(y ~ gender, data = t_train_bf,
+                      family = stats::binomial())
+print(cbind(t_new_bf,
+            y_predicted = round(stats::predict(fit_pbf,
+                                               newdata = t_new_bf,
+                                               type = "response"), 4)))

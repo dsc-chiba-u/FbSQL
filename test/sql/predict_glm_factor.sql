@@ -1,0 +1,119 @@
+-- predict_glm() MVP stage 3: factor predictors (treatment contrasts),
+-- rebuilt from metadata.xlevels / contrasts without R.
+-- Reference values in scripts/parity_reference.R.
+CREATE TEMP TABLE t_train_factor (
+    y      double precision,
+    gender text
+);
+
+INSERT INTO t_train_factor VALUES
+    (1.0, 'F'), (2.0, 'M'), (1.5, 'F'),
+    (2.5, 'M'), (3.0, 'Other'), (2.8, 'Other');
+
+CREATE TEMP TABLE t_new_factor (
+    id     integer,
+    gender text
+);
+
+-- Row 4: NULL factor must predict NULL. Row 5: level unseen at fit time.
+INSERT INTO t_new_factor VALUES
+    (1, 'F'), (2, 'M'), (3, 'Other'), (4, NULL), (5, 'Unknown');
+
+CREATE TEMP TABLE t_model_f AS
+SELECT *
+FROM fbsql.fit_glm(
+    relation => $$ SELECT y, gender FROM t_train_factor $$,
+    formula  => 'y ~ gender',
+    family   => 'gaussian');
+
+-- Default on_new_levels => 'error': the novel level aborts the prediction.
+SELECT id, gender, round(y_predicted::numeric, 4) AS y_predicted
+FROM fbsql.predict_glm(
+    relation => $$ SELECT id, gender FROM t_new_factor $$,
+    model    => $$ SELECT * FROM t_model_f $$
+) AS p(id integer, gender text, y_predicted double precision)
+ORDER BY id;
+
+-- on_new_levels => 'na': only the novel-level row predicts NULL.
+SELECT id, gender, round(y_predicted::numeric, 4) AS y_predicted
+FROM fbsql.predict_glm(
+    relation      => $$ SELECT id, gender FROM t_new_factor $$,
+    model         => $$ SELECT * FROM t_model_f $$,
+    on_new_levels => 'na'
+) AS p(id integer, gender text, y_predicted double precision)
+ORDER BY id;
+
+-- Without the novel row the default policy predicts normally.
+SELECT id, gender, round(y_predicted::numeric, 4) AS y_predicted
+FROM fbsql.predict_glm(
+    relation => $$ SELECT id, gender FROM t_new_factor WHERE id <= 4 $$,
+    model    => $$ SELECT * FROM t_model_f $$
+) AS p(id integer, gender text, y_predicted double precision)
+ORDER BY id;
+
+-- Invalid on_new_levels value.
+SELECT * FROM fbsql.predict_glm(
+    relation      => $$ SELECT id, gender FROM t_new_factor $$,
+    model         => $$ SELECT * FROM t_model_f $$,
+    on_new_levels => 'ignore'
+) AS p(id integer, gender text, y_predicted double precision);
+
+-- Mixed numeric + factor predictors (gaussian).
+CREATE TEMP TABLE t_train_mix (
+    y      double precision,
+    x1     double precision,
+    gender text
+);
+
+INSERT INTO t_train_mix VALUES
+    (1.2, 0, 'F'), (2.3, 1, 'M'), (3.1, 2, 'Other'),
+    (1.8, 3, 'F'), (2.9, 4, 'M'), (3.7, 5, 'Other'),
+    (2.1, 6, 'F'), (3.3, 7, 'M'), (4.2, 8, 'Other');
+
+CREATE TEMP TABLE t_new_mix (
+    id     integer,
+    x1     double precision,
+    gender text
+);
+
+INSERT INTO t_new_mix VALUES
+    (1, 2.0, 'F'), (2, 5.0, 'Other'), (3, 3.0, NULL), (4, NULL, 'M');
+
+CREATE TEMP TABLE t_model_mix AS
+SELECT *
+FROM fbsql.fit_glm(
+    relation => $$ SELECT y, x1, gender FROM t_train_mix $$,
+    formula  => 'y ~ x1 + gender',
+    family   => 'gaussian');
+
+SELECT id, x1, gender, round(y_predicted::numeric, 4) AS y_predicted
+FROM fbsql.predict_glm(
+    relation => $$ SELECT id, x1, gender FROM t_new_mix $$,
+    model    => $$ SELECT * FROM t_model_mix $$
+) AS p(id integer, x1 double precision, gender text,
+       y_predicted double precision)
+ORDER BY id;
+
+-- Binomial + factor: probabilities through the inverse logit.
+CREATE TEMP TABLE t_train_bf (
+    y      integer,
+    gender text
+);
+
+INSERT INTO t_train_bf VALUES
+    (0, 'F'), (1, 'F'), (0, 'F'),
+    (1, 'M'), (0, 'M'), (1, 'M');
+
+CREATE TEMP TABLE t_model_bf AS
+SELECT *
+FROM fbsql.fit_glm(
+    relation => $$ SELECT y, gender FROM t_train_bf $$,
+    formula  => 'y ~ gender',
+    family   => 'binomial');
+
+SELECT id, gender, round(y_predicted::numeric, 4) AS y_predicted
+FROM fbsql.predict_glm(
+    relation => $$ SELECT id, gender FROM t_new_factor WHERE id IN (1, 2) $$,
+    model    => $$ SELECT * FROM t_model_bf $$
+) AS p(id integer, gender text, y_predicted double precision)
+ORDER BY id;

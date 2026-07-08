@@ -164,11 +164,11 @@ AS $fit_glm$
     )
 $fit_glm$;
 
--- predict_glm() MVP (stage 2): numeric predictors; gaussian/identity and
--- binomial/logit (probabilities, R's type = "response").
--- Deliberately implemented WITHOUT R: predictions are computed from the
--- coefficient relation plus its metadata column alone, demonstrating that
--- the relation really is a complete model representation.
+-- predict_glm() MVP (stage 3): numeric and factor predictors (treatment
+-- contrasts); gaussian/identity and binomial/logit (probabilities, R's
+-- type = "response"). Deliberately implemented WITHOUT R: predictions are
+-- computed from the coefficient relation plus its metadata column alone,
+-- demonstrating that the relation really is a complete model representation.
 --
 -- Returns SETOF record, so callers attach a column definition list:
 --   SELECT * FROM fbsql.predict_glm(...) AS p(id int, x float8,
@@ -176,26 +176,42 @@ $fit_glm$;
 -- The output is the input relation's rows with one appended column named
 -- <response>_predicted. Rows whose predictors contain NULL get a NULL
 -- prediction (SQL NULL semantics; matches R's predict() returning NA).
+-- Factor levels unseen at fit time follow on_new_levels: 'error' (default,
+-- like stats::predict.glm) or 'na' (NULL prediction for those rows only;
+-- policy taken from fbrglm).
 CREATE FUNCTION fbsql.predict_glm(
-    relation text,
-    model    text
+    relation      text,
+    model         text,
+    on_new_levels text DEFAULT 'error'
 ) RETURNS SETOF record
 LANGUAGE plpgsql
 AS $predict_glm$
 DECLARE
-    meta   jsonb;
-    fam    text;
-    lnk    text;
-    coefs  jsonb;
-    n_rows bigint;
-    expr   text := '0';
-    term   text;
+    meta       jsonb;
+    fam        text;
+    lnk        text;
+    resp       text;
+    coefs      jsonb;
+    n_rows     bigint;
+    expr       text := '0';
+    term       text;
+    fkey       text;
+    flevels    jsonb;
+    lvl        text;
+    found      boolean;
+    lvl_list   text;
+    novel_cond text := '';
+    novel_val  text;
 BEGIN
     IF relation IS NULL OR relation = '' THEN
         RAISE EXCEPTION 'predict_glm: relation must be a non-empty SQL string';
     END IF;
     IF model IS NULL OR model = '' THEN
         RAISE EXCEPTION 'predict_glm: model must be a non-empty SQL string';
+    END IF;
+    IF on_new_levels IS NULL OR on_new_levels NOT IN ('error', 'na') THEN
+        RAISE EXCEPTION 'predict_glm: on_new_levels must be ''error'' or ''na'' (got: %)',
+            on_new_levels;
     END IF;
 
     EXECUTE format('SELECT m.metadata, m.family, m.link FROM (%s) m LIMIT 1', model)
@@ -212,15 +228,20 @@ BEGIN
         RAISE EXCEPTION 'predict_glm: family ''%'' with link ''%'' is not supported yet (supported: gaussian/identity, binomial/logit)',
             fam, lnk;
     END IF;
-    -- R dataClasses maps every numeric SQL column to 'numeric', so any
-    -- other class (factor, logical, ...) is outside this MVP scope. The
-    -- response column is exempt: it is absent from the scoring relation
-    -- anyway, and a binomial response is legitimately logical (boolean).
+    resp := meta ->> 'response';
+    -- Predictors must be numeric or factor. The response column is exempt:
+    -- it is absent from the scoring relation anyway, and a binomial
+    -- response is legitimately logical (boolean).
     IF EXISTS (SELECT 1 FROM jsonb_each_text(meta -> 'data_classes') dc
-               WHERE dc.value <> 'numeric'
-                 AND dc.key <> meta ->> 'response') THEN
-        RAISE EXCEPTION 'predict_glm: only numeric predictors are supported yet (data_classes: %)',
+               WHERE dc.value NOT IN ('numeric', 'factor')
+                 AND dc.key <> resp) THEN
+        RAISE EXCEPTION 'predict_glm: only numeric and factor predictors are supported yet (data_classes: %)',
             meta -> 'data_classes';
+    END IF;
+    IF EXISTS (SELECT 1 FROM jsonb_each_text(meta -> 'contrasts') c
+               WHERE c.value <> 'contr.treatment') THEN
+        RAISE EXCEPTION 'predict_glm: only treatment contrasts are supported yet (contrasts: %)',
+            meta -> 'contrasts';
     END IF;
 
     EXECUTE format('SELECT jsonb_object_agg(m.term, m.estimate), count(*) FROM (%s) m',
@@ -243,11 +264,65 @@ BEGIN
         END IF;
         IF term = '(Intercept)' THEN
             expr := expr || format(' + (%L)::double precision', coefs ->> term);
-        ELSE
+        ELSIF meta -> 'data_classes' ->> term = 'numeric' AND term <> resp THEN
             expr := expr || format(' + (%L)::double precision * r.%I',
                                    coefs ->> term, term);
+        ELSE
+            -- Treatment-contrast dummy: R names the column <factor><level>.
+            -- (r.<factor> = <level>)::int is 1/0 and NULL when the factor
+            -- column is NULL, so NULL rows predict NULL automatically.
+            found := false;
+            FOR fkey, flevels IN SELECT e.key, e.value
+                                 FROM jsonb_each(meta -> 'xlevels') e
+            LOOP
+                FOR lvl IN SELECT l.value
+                           FROM jsonb_array_elements_text(flevels) l
+                LOOP
+                    IF term = fkey || lvl THEN
+                        expr := expr || format(
+                            ' + (%L)::double precision * ((r.%I = %L)::int)::double precision',
+                            coefs ->> term, fkey, lvl);
+                        found := true;
+                        EXIT;
+                    END IF;
+                END LOOP;
+                EXIT WHEN found;
+            END LOOP;
+            IF NOT found THEN
+                RAISE EXCEPTION 'predict_glm: cannot interpret coefficient term ''%'' (interactions and custom contrasts are not supported yet)',
+                    term;
+            END IF;
         END IF;
     END LOOP;
+
+    -- Factor levels unseen at fit time. With 'error' the offending level is
+    -- reported up front (one probe query per factor); with 'na' only the
+    -- offending rows predict NULL.
+    FOR fkey, flevels IN SELECT e.key, e.value
+                         FROM jsonb_each(meta -> 'xlevels') e
+    LOOP
+        SELECT string_agg(format('%L', l.value), ', ')
+            INTO lvl_list
+            FROM jsonb_array_elements_text(flevels) l;
+        IF on_new_levels = 'error' THEN
+            EXECUTE format(
+                'SELECT r.%I FROM (%s) r WHERE r.%I IS NOT NULL AND r.%I NOT IN (%s) LIMIT 1',
+                fkey, relation, fkey, fkey, lvl_list)
+                INTO novel_val;
+            IF novel_val IS NOT NULL THEN
+                RAISE EXCEPTION 'predict_glm: factor ''%'' has new level ''%'' not seen at fit time (known levels: %); use on_new_levels => ''na'' to return NULL for such rows',
+                    fkey, novel_val, flevels;
+            END IF;
+        ELSE
+            novel_cond := novel_cond
+                || CASE WHEN novel_cond = '' THEN '' ELSE ' OR ' END
+                || format('(r.%I IS NOT NULL AND r.%I NOT IN (%s))',
+                          fkey, fkey, lvl_list);
+        END IF;
+    END LOOP;
+    IF novel_cond <> '' THEN
+        expr := format('CASE WHEN %s THEN NULL ELSE %s END', novel_cond, expr);
+    END IF;
 
     -- Apply the inverse link: identity is a no-op; logit yields
     -- probabilities (R's predict(..., type = "response")).
@@ -257,6 +332,6 @@ BEGIN
 
     RETURN QUERY EXECUTE format(
         'SELECT r.*, (%s)::double precision AS %I FROM (%s) r',
-        expr, (meta ->> 'response') || '_predicted', relation);
+        expr, resp || '_predicted', relation);
 END;
 $predict_glm$;

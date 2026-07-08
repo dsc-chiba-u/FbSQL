@@ -329,6 +329,24 @@ treatment contrast。**この規約こそが predict 時に再現すべき情報
 正当なため(Running Example の `churn_flag`)。boolean 応答で学習したモデルでの
 予測もテストで検証済み。
 
+**第3段階(2026-07-08 実装): factor 対応と `on_new_levels`**
+
+- 係数 term(例 `genderM`)を metadata の `xlevels` と突き合わせて
+  `<factor名><水準名>` に分解し、treatment contrast のダミーを
+  `((r.gender = 'M')::int)` という SQL 式で再構築する。factor 列が NULL の行は
+  等値比較の NULL 伝播により自然に予測値 NULL になる(数値列の NULL と同じ挙動)。
+- `on_new_levels text DEFAULT 'error'` 引数を追加(fbrglm の設計を踏襲):
+  - `'error'`(既定): 学習時に無い水準を検出した時点でエラー(水準名・既知水準の
+    一覧・`'na'` への誘導をメッセージに含む)。検出は factor ごとの事前プローブ
+    クエリで行うため、`'error'` 時は relation が「検出 + 本体」で複数回実行される
+    (volatile な relation では注意。MVP の既知の制約として記録)。
+  - `'na'`: novel 水準を含む行だけ `CASE ... THEN NULL` で予測値 NULL、他の行は通常予測。
+  - それ以外の値は明示エラー。
+- `contrasts` に `contr.treatment` 以外があれば明示エラー。係数 term が数値列にも
+  `<factor><水準>` にも解釈できない場合(交互作用等)も明示エラー。
+- gaussian / binomial の両方で factor・数値混在モデルが動作(R の
+  `predict(type="response")` と一致することをテストで検証)。
+
 **API**: `fbsql.predict_glm(relation text, model text)`。`relation` は予測対象の SQL
 文字列、`model` は `fit_glm()` の出力リレーションを返す SQL 文字列。
 

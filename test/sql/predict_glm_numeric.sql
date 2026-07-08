@@ -30,15 +30,3 @@ FROM fbsql.predict_glm(
     model    => $$ SELECT * FROM t_model $$
 ) AS p(id integer, x double precision, y_predicted double precision)
 ORDER BY id;
-
--- Factor predictors are not supported by this stage.
-CREATE TEMP TABLE t_train_f (y double precision, g text);
-INSERT INTO t_train_f VALUES (1.0, 'a'), (2.0, 'b'), (1.5, 'a'), (2.5, 'b');
-CREATE TEMP TABLE t_model_f AS
-SELECT * FROM fbsql.fit_glm(
-    relation => $$ SELECT y, g FROM t_train_f $$,
-    formula  => 'y ~ g');
-SELECT * FROM fbsql.predict_glm(
-    relation => $$ SELECT g FROM t_train_f $$,
-    model    => $$ SELECT * FROM t_model_f $$
-) AS p(g text, y_predicted double precision);
