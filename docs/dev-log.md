@@ -6,6 +6,62 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: Conclusion 章の初稿執筆 — 本文完成
+
+### Summary
+
+- `paper/paper.Rmd` の **Conclusion 章のみ**を本文化。これで **Introduction
+  〜 Conclusion の全9章 + Abstract が揃い、本文初稿が完成**
+- Abstract の繰り返しにせず、subsection なしの4段落構成:
+  (1) What was proposed — 冒頭文 "This paper proposed a language, not a
+  package."。extension と glm 2関数は仕様を具体化・検証可能にするための
+  存在であり主張ではない、estimator は「平凡だから選んだ」と再確認、
+  (2) What was learned — 4つの設計知見(言語設計はエンジンと独立に
+  議論・*検証*できる / model representation は実装詳細ではなく言語問題の
+  核心(評価で観察した挙動差はすべてモデルの所在と記述方法に遡った)/
+  relation 表現は予測・解釈・監査を単一 artifact で支える / 原則同士は
+  衝突するので設計は明示的トレードオフの集合 — 言語提案が負うのは選択の
+  不在ではなく文書化)。性能への言及なし、
+  (3) Broader implications — Minimum Atomic Relation の問いを「この論文を
+  超えて旅してほしい問い」として再提示。GLM = 係数、RF / GB = node 粒度、
+  将来のモデルクラスにも先立つ問い。「DB 内統計モデリングは systems
+  問題だけでなく言語問題である」という一般論で締め、
+  (4) Future work は1段落のみ(Discussion 済みの3方向を1文で)
+- 文献追加なし(引用なしの章)
+
+### Changed Files
+
+- `paper/paper.Rmd`: Conclusion 章の本文化のみ
+
+### Validation
+
+- `make html` → 成功。未解決引用なし
+- `make jss` → 成功(冒頭文の反映を pdftotext で確認)
+- `make clean` → 成功、生成物が git に残らないことを確認
+
+### 本文全体で残っている TODO(コメント)
+
+- 図表アセット7件: Figure 1(system overview)/ Figure 2(running
+  example、参照2箇所)/ Figure 3(implementation layers)/ Figure 4
+  (comparison taxonomy)/ Table 2(customer テーブル)/ 比較表の取込み
+  (tables/related_work.tex + Table 番号参照への差し替え)
+- JSS 定型節: Computational details / Acknowledgments / Replication
+  material(末尾コメント)
+- references.bib: rcore の R バージョン固定、fbrglm のバージョン表記
+  (CRAN 0.0.1 vs メモ 0.1.0)の投稿前検証
+- render.sh と paper.Rmd の YAML 手動同期(title / author / abstract /
+  keywords)は執筆完了後の最終確認項目
+
+### Next Step
+
+- 図表アセットの作成(Figure 1〜4 は paper 用に作図、Table 2 と比較表は
+  FbSQL-experiments 側で生成して取込み)、その後 JSS 定型節
+
+Commit: `Draft conclusion section`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: Abstract + keywords の執筆
 
 ### Summary

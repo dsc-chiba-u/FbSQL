@@ -1395,8 +1395,57 @@ expect to find them.
 
 # Conclusion
 
-<!-- TODO: restate the claim: a statistical modeling language faithful to
-     SQL design principles, with glm as the first proof of concept. -->
+This paper proposed a language, not a package. FbSQL is a statistical
+modeling DSL that takes SQL's own design principles — set orientation,
+declarativeness, closure, order independence, and NULL semantics — as hard
+constraints, and answers them with a formula as the model specification, a
+relation as the fitted model, and prediction as a mapping from relations
+to a relation. The PostgreSQL extension that accompanies the paper is the
+reference implementation of that language, and the two `glm` functions are
+its proof of concept; both exist to make the specification concrete and
+testable, and neither is the claim. The estimator behind `fit_glm()` was
+chosen precisely because it is ordinary.
+
+Beyond the specification itself, the work yielded design lessons that we
+believe outlast the proof of concept. First, SQL language design for
+statistical modeling can be discussed — and verified — independently of
+the computation engine: by fixing semantics by reference to an existing
+system and locking them with a conformance suite, the specification became
+a tested artifact, and prediction could be re-implemented in a different
+language from the public relation alone. Second, the representation of the
+fitted model is not an implementation detail but the heart of the language
+question: the behavioral differences observed across systems in the
+evaluation — what a user must build by hand, what fails, what proceeds
+silently — traced back, case by case, to where each system keeps its model
+and how the user must describe it. Third, a relation representation serves
+prediction, interpretation, and audit with a single artifact: the same
+queryable table that a predictor consumes also answers, by ordinary
+`SELECT`, what the model is and what data it saw. And fourth, the
+principles themselves can conflict — closure against normalization, most
+prominently — so a design in this space is a set of explicit trade-offs;
+what a language proposal owes its users is not the absence of such
+choices but their documentation.
+
+The question we most hope travels beyond this paper is the *Minimum
+Atomic Relation* question: for a given class of statistical models, what
+is the smallest relation that supports both the interpretation of a fitted
+model and the reconstruction of its predictions? For generalized linear
+models the answer proved to be a term-grain coefficient relation with
+self-describing metadata; for random forests and gradient-boosted
+ensembles it is plausibly a node-grain relation of split rules; for future
+model classes it is a question each must answer before it can enter SQL
+*as SQL*. Posed this way, statistical modeling in databases stops being
+only a systems problem — how to compute efficiently near the data — and
+becomes also a language problem: which properties of SQL must survive the
+encounter, and what relational form statistical objects must take for that
+to happen. The five principles and the running example of this paper are
+offered as one worked answer and a template for the next ones.
+
+The immediate continuations — alternative engines behind the unchanged
+specification, further families and the tree-ensemble relations, and
+public release of the extension and its replication material — were
+discussed above and are underway; they extend the evidence, while the
+proposal this paper stands on is the language.
 
 <!-- Computational details / Acknowledgments / Replication material
      sections to be added in JSS style at writing time. -->
