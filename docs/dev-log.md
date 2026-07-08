@@ -6,6 +6,62 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: Related Work 章の初稿執筆
+
+### Summary
+
+- `paper/paper.Rmd` の **Related Work 章のみ**を本文化(他章は TODO のまま)。
+  構成は指示どおり3部: (1) 類型(in-database SQL-ML = MADlib・PostgresML /
+  SQL-on-engine ML = Spark MLlib・Hivemall / SQL-adjacent ML = H2O-3 +
+  Sparkling Water、BigQuery ML は非OSSのため除外と簡潔に説明)、
+  (2) Design trade-offs(章の中心。5原則を軸に各システムが何を重視し
+  何を委譲・犠牲にしているかをレビュー)、(3) Positioning of FbSQL
+  (優劣ではなく "differs in its design objective"。既存要素の
+  conjunction を目指す点が新しいという位置付け。スコープの狭さを代償として明記)
+- **実測と文献の区別を本文で明示**: MADlib(1.21.0/PG11)・PostgresML
+  (2.7.12/PG15)・Spark(3.5.1)は "measured"(running example を
+  FbSQL-experiments の固定 Docker 環境で再現)、Hivemall・H2O は
+  "literature based"(公式ドキュメント由来、未実行、出典は companion repo に
+  記録)と冒頭で宣言し、各段落でも再掲
+- 比較表は本文で重複説明せず、FbSQL-experiments の `data/related_work.csv`
+  (19次元)へ委譲。tables/related_work.tex の取込みと Table 相互参照は
+  TODO コメントで明示
+- 語彙は指示どおり(adopts / emphasizes / delegates / preserves /
+  makes different trade-offs。violate / superior / flawed 不使用)
+- `references.bib` に **bigqueryml を1件追加**(公式ドキュメント URL を
+  WebFetch で実在確認済み。docs.cloud.google.com へのリダイレクトを反映)。
+  重複なし
+
+### Changed Files
+
+- `paper/paper.Rmd`: Related Work 章の本文化
+- `paper/references.bib`: bigqueryml エントリ追加
+
+### Validation
+
+- `make html` → 成功。未解決引用(`[@key]` / `???`)なし、BigQuery ML の
+  本文 + References 反映を確認
+- `make jss` → 成功(paper-jss.pdf、本文反映を pdftotext で確認)
+- `make clean` → 成功、生成物が git に残らないことを確認
+
+### Known Issues
+
+- 比較表の紙面向け縮約版(tables/related_work.tex)は未作成 — 生成は
+  experiments 側の担当。取込み後に本文の prose pointer を Table 番号参照へ
+  差し替えること(Rmd 内 TODO コメント)
+- Hivemall の interaction / offset / weight / NULL、PostgresML の
+  interaction / offset / weight は表上 TBD のまま(本文では言及せず安全側に倒した)
+
+### Next Step
+
+- Language Design 章(fit/predict のシグネチャ、formula、named arguments、
+  Minimum Atomic Relation、metadata jsonb スキーマ)の初稿
+
+Commit: `Draft related work section`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: Design Principles 章の初稿執筆
 
 ### Summary

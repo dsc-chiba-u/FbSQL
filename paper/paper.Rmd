@@ -50,10 +50,184 @@ bibliography: references.bib
 
 # Related Work
 
-<!-- TODO: review MADlib, PostgresML, Spark MLlib (RFormula), Hivemall,
-     H2O-3 + Sparkling Water against the five design principles, using
-     FbSQL-experiments/results/tables/related_work.md as the source table;
-     BigQuery ML mentioned only as a non-OSS example. -->
+Systems that bring statistical or machine learning computation to SQL users
+differ less in raw capability than in which properties of SQL they choose
+to preserve. This section reviews five open-source systems through the lens
+of the five design principles of the previous section, asking of each
+system what it emphasizes and what it trades away — not which system is
+better. The review rests on two kinds of evidence, and we keep them
+distinct throughout. For Apache MADlib (1.21.0 on PostgreSQL 11),
+PostgresML (2.7.12 on its bundled PostgreSQL 15), and Spark MLlib (3.5.1),
+the observations are *measured*: we reproduced this paper's running example
+— a customer-churn logistic regression — on each system inside pinned
+Docker environments in the companion repository `FbSQL-experiments`. For
+Apache Hivemall and H2O-3 with Sparkling Water, the review is *literature
+based*, drawn from the official documentation and recorded claim by claim
+with sources in the companion repository; these systems were not executed,
+and we do not report anything their documentation does not state. A full
+comparison across nineteen design dimensions is maintained as
+version-controlled data (`data/related_work.csv`) in `FbSQL-experiments`
+and rendered from it; the present section confines itself to the design
+trade-offs and delegates the dimension-by-dimension detail to that table.
+
+<!-- TODO(table wiring): import the condensed comparison table as
+     tables/related_work.tex (generated in FbSQL-experiments) and replace
+     the prose pointer above with a numbered Table cross-reference. -->
+
+## A taxonomy of SQL-oriented machine learning systems
+
+The systems fall into three groups according to where the modeling
+computation lives relative to the SQL language.
+
+**In-database SQL-ML.** Apache MADlib [@hellerstein2012madlib] and
+PostgresML [@postgresml] are PostgreSQL extensions: training and prediction
+are invoked as SQL function calls, and the computation runs inside the
+database server. These systems share FbSQL's host environment and
+invocation surface, which makes the differences in language design the most
+directly comparable.
+
+**SQL-on-engine ML.** Apache Spark MLlib [@meng2016mllib] and Apache
+Hivemall [@hivemall] attach machine learning to distributed query engines
+whose query language is, or includes, SQL. In Spark, SQL defines the input
+relations (`spark.sql`) while the modeling itself lives in the
+DataFrame/Pipeline API beside the SQL dialect; in Hivemall, training and
+prediction are user-defined functions written into HiveQL queries, so the
+user never leaves SQL, although — as discussed below — much of the
+statistical semantics is left to the query author. Hivemall was retired
+from the Apache Incubator in September 2022; we review it nonetheless
+because its design occupies a distinctive point that no active system
+covers.
+
+**SQL-adjacent ML.** H2O-3 with Sparkling Water [@h2o] is a separate
+machine learning cluster with its own frame data structure. Sparkling Water
+bridges Spark to it, so data defined by Spark SQL can reach H2O — but only
+by conversion from a DataFrame into an H2OFrame, after which the modeling
+API is R, Python, or Flow rather than SQL. We include it as the boundary
+case: a system that SQL users can reach, built without SQL as a design
+target.
+
+BigQuery ML [@bigqueryml] also offers model training through SQL
+statements, but it is a proprietary managed service rather than open-source
+software: its environment cannot be pinned, versioned, and re-executed the
+way the systems above can, so we exclude it from the comparison and return
+to it only briefly in the *Discussion* section.
+
+## Design trade-offs
+
+**Apache MADlib** emphasizes in-database scale and statistical output: its
+`glm()` covers five families with link options, reports standard errors,
+*z* statistics, and *p* values, and runs inside PostgreSQL and Greenplum.
+The trade-offs concentrate in specification and model representation.
+There is no formula: independent variables are supplied as an SQL array
+expression string, and categorical predictors must be one-hot encoded by
+the user before training, so the declarative-specification work is
+delegated to the query author. Training is procedure-style — a
+void-returning call that writes two output tables by side effect — and the
+model table stores coefficients, standard errors, and *p* values as
+parallel arrays without term names, so position is the only link between a
+coefficient and its meaning. In our measured runs, the coefficients matched
+R's `glm()` to four decimals, but scoring a factor level unseen at training
+time produced a silent prediction as the reference level: with user-side
+encoding, all the hand-built dummies of an unknown level are zero, and the
+system has no fit-time level information against which to detect the
+condition.
+
+**PostgresML** shares FbSQL's deployment surface — it is likewise a
+PostgreSQL extension called through SQL functions — but pursues a different
+objective: a modern machine learning platform with model lifecycle
+management. Specification reduces to a task and an algorithm name
+(`'classification'`, `'linear'`); there is no family/link concept, and the
+reporting consists of machine learning metrics rather than standard errors
+or confidence intervals. The fitted model is a serialized binary in
+PostgresML's catalog tables, and prediction is a scalar function that
+refers to a *project name*, resolving through the currently deployed model
+— an indirection through mutable state rather than a value the caller
+passes. In our measured runs, text columns were label-encoded to ordinal
+reals by default (`F` = 1, `M` = 2, `Other` = 3), which imposes an
+artificial ordering inside linear models, and a NULL feature at prediction
+time raised a hard error. The emphasis is operational — automatic
+train/test splits, metric tracking, deployment — and the trade-off is that
+neither the statistical model nor its representation is expressed
+relationally.
+
+**Spark MLlib** is the system that demonstrates formula-shaped
+specification at scale: its `RFormula` transformer accepts
+`churn_flag ~ age + gender` and derives the encoding automatically.
+However, the semantics differ from R's — in our measured runs, factor
+levels were ordered by frequency with the least frequent level as the
+reference, so the fitted model was the same (predictions matched R and
+FbSQL to four decimals) while the coefficient table was comparable only
+after reparameterization, a hazard when porting R workflows. Closure is
+preserved at the DataFrame level rather than the SQL level:
+`transform()` maps the input DataFrame to the same DataFrame with appended
+prediction columns, which is exactly the relation-in/relation-out shape,
+but expressed in the host-language Pipeline API while the fitted model
+itself remains a JVM object persisted as a directory. NULL handling and
+unseen-level handling are coupled into a single `handleInvalid` switch
+whose default raises an error and whose `skip` option silently drops rows,
+changing the granularity of the output — there is no keep-the-row-with-NULL
+option.
+
+**Apache Hivemall** (literature based) makes the opposite trade-off from
+Spark: everything stays inside HiveQL, and the trained model is a genuine
+`(feature, weight)` table — the closest any reviewed system comes to
+relational closure. What it delegates is the statistical semantics. There
+is no family abstraction (training functions are per-algorithm, such as
+`logress` for logistic regression); features are arrays of `index:value`
+strings assembled by the user, so encoding is manual; the feature column of
+the model table is an index without term semantics; and prediction is
+hand-written SQL — exploding the feature array, joining the model table,
+and applying the link function explicitly. Hyperparameters are packed into
+a single option string rather than named arguments. Hivemall thus preserves
+the relational mechanics while relying on the query author for everything
+the formula machinery would otherwise derive.
+
+**H2O-3 with Sparkling Water** (literature based) is statistically the
+richest GLM implementation among the systems reviewed: ten families,
+multiple links, offsets, observation weights, and interaction terms are all
+documented parameters, with standard errors and *p* values available on
+request. It is not a SQL DSL and does not aim to be one: models are
+specified as x/y column lists rather than formulas, the fitted model is a
+binary object in the H2O cluster (exportable as MOJO/POJO), and Spark SQL
+reaches the system only through DataFrame-to-H2OFrame conversion, at which
+point the data has left the relational world. Its documented defaults are
+tuned to predictive machine learning rather than to SQL or R conventions:
+missing values are mean-imputed by default rather than dropped, default
+fits are elastic-net regularized (so unpenalized `glm()` parity requires
+setting `lambda = 0`), and factor levels unseen at scoring time are
+replaced by the most frequent training level. Within its own design
+objective these are coherent choices; they simply answer to a different set
+of principles than the ones considered here.
+
+Across the five systems a pattern emerges: each preserves some of the five
+principles and relaxes others, and in every case the relaxation follows
+from the system's objective — distributed scale for MADlib, lifecycle
+operations for PostgresML, pipeline composition for Spark, staying inside
+HiveQL for Hivemall, and statistical breadth for H2O. Notably, closure
+appears twice in partial form — at the DataFrame level in Spark and in the
+model-as-table of Hivemall — but in no reviewed system do set-oriented
+invocation, declarative formula semantics, and relation-in/relation-out
+closure hold simultaneously at the SQL level.
+
+## Positioning of FbSQL
+
+FbSQL differs from these systems in its design objective rather than in
+capability. It asks what the conjunction looks like: SQL functions inside a
+DBMS (as in MADlib and PostgresML), model specification with R's formula
+semantics (which Spark approximates in shape but not in semantics), a
+fitted model that *is* a relation consumed and produced by ordinary queries
+(which Hivemall approaches mechanically but without term semantics), and
+model metadata that travels inside that relation rather than residing in
+system catalogs or host-language objects. Each element exists somewhere in
+the reviewed systems; to our knowledge, no system offers their combination
+under the five principles, and the running example of this paper is
+designed to make the resulting differences observable rather than
+rhetorical. The price of this objective is scope: FbSQL's proof of concept
+covers two families and deliberately omits offsets, weights, and
+interactions — exclusions we return to in the *Discussion* section. The
+systems reviewed here are not deficient versions of FbSQL, and FbSQL is not
+a replacement for any of them; they optimize different points in a design
+space that this paper tries to make explicit.
 
 # Design Principles
 
