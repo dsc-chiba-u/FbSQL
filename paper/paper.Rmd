@@ -1229,11 +1229,149 @@ section.
 
 # Discussion
 
-<!-- TODO: trade-offs (denormalized model-level columns, jsonb metadata,
-     SETOF record column definition lists); generalization to tree
-     ensembles (fit_rf / fit_lgbm / fit_xgb atomic relations); C
-     implementation outlook; named arguments and the SQL standard;
-     deliberate exclusions (weights/offset). -->
+The preceding sections presented FbSQL's specification and what its
+evaluation made observable. This section steps back and examines the
+design trade-offs behind those choices — what was given up, what was
+gained, and where the boundaries of the present work lie. Nothing here is
+a new result; it is the accounting that the *Design Principles* section
+promised.
+
+## One relation versus normalized relations
+
+The seventeen-column model relation mixes two granularities: term-level
+columns that vary by row, and model-level columns — `aic`, the
+complete-case counters, `family`, and ultimately `metadata` — that repeat
+the same value on every row. By the normalization discipline of the
+relational tradition [@codd1970relational], this is the textbook case for
+decomposition: the model-level columns depend on the model, not the term,
+and a normalized design would return a coefficient relation, a model
+summary relation, and perhaps a metadata relation. We chose not to, and
+the reason is closure. A SQL function returns one value; the moment
+fitting returns two relations, the result can no longer flow through
+`CREATE TABLE AS`, subqueries, and function composition as a single
+thing, and the property the whole design exists to preserve is lost at
+its most important boundary. Between normalization and closure, FbSQL
+consistently chooses closure, and it pays deliberately: redundant values
+that a hand-edited model table could in principle make inconsistent, and
+a relation that carries more width than a term table strictly needs. The
+practical costs are modest — the row count equals the number of terms, so
+the repetition is small, and model-level values are one `SELECT DISTINCT`
+away — but we present this as a trade-off, not a free lunch. The same
+accounting applies to the `metadata` column: a separate metadata relation
+would be cleaner by decomposition and was rejected on identical grounds.
+
+## Metadata as part of the language
+
+It would be easy to read the JSONB `metadata` column as an implementation
+convenience — a place where `predict_glm()` stores what it happens to
+need. We argue the opposite: metadata belongs to the language
+specification, because without it the model relation does not mean
+anything definite. A coefficient table alone under-determines the model.
+`xlevels` records the level sets — including the reference level, which
+appears in no `term` — without which `genderM` is an uninterpretable
+label; `term_labels` preserves the formula's structure without relying on
+re-parsing a string; `coef_terms` gives the canonical set of coefficients,
+which is what makes an *unordered* collection of rows checkable for
+completeness and duplication; `data_classes` fixes how each column was
+interpreted. These fields are not there because the current predictor
+consumes them — any consumer faces the same questions, whether it is a
+predictor, an auditor asking what data the model saw, or a query
+comparing two refits. They are there so that the relation is
+self-describing: its meaning travels with it rather than residing in
+session state or out-of-band knowledge. That is also why the schema is
+versioned — an interpretation contract is an API, and `meta_version` is
+its compatibility handle. The trade-off is acknowledged: a JSONB column is
+a departure from flat relational form, adopted because the alternatives
+sacrificed either closure (a second relation) or the relation's
+granularity (flattening levels into extra rows), and because JSONB keeps
+the contract queryable from SQL itself.
+
+## SQL standard versus practical SQL
+
+FbSQL's normative call style, `fit_glm(relation => ..., formula => ...)`,
+uses named notation that PostgreSQL and Oracle provide but the ISO SQL
+standard does not. We are deliberately cautious here. On one hand, the
+experience of this paper suggests that named arguments are not cosmetic
+for statistical interfaces: fitting functions accumulate optional
+parameters, and the order-independence principle extends naturally from
+rows to arguments. On the other hand, FbSQL is otherwise conservative —
+everything else is plain functions over relations, installable as an
+extension without any change to the SQL grammar — and we would not want
+the proposal read as a criticism of the standard. The contrast with
+BigQuery ML [@bigqueryml], which extends the SQL grammar itself with
+model-creating DDL statements, is instructive as a design alternative:
+grammar extension buys dedicated syntax at the cost of portability, while
+the function route stays within what every SQL implementation already
+parses. At most, we offer FbSQL's experience as one data point for future
+standardization discussions: if statistical functions become common in
+SQL, standardized named-argument notation would carry much of the
+readability weight that dedicated syntax otherwise would.
+
+## Beyond GLM
+
+The *Minimum Atomic Relation* question — the smallest relation supporting
+both interpretation and prediction — was answered for GLMs with the
+term-grain coefficient relation. The question, not the answer, is the
+reusable part, and it is worth asking conceptually for the tree ensembles
+named throughout this paper. For a random forest, or a gradient-boosted
+ensemble in the LightGBM or XGBoost families, the natural grain is the
+*node*: one row per node per tree, with columns identifying the tree and
+node, the split variable and threshold (or the level set, for categorical
+splits), the child references or leaf value, and the treatment of missing
+values at that split. Interpretation is then aggregation — variable
+importance and split-frequency queries are `GROUP BY split_variable` away
+— and prediction is traversal, reconstructible from the relation alone,
+just as the linear predictor was reconstructible from coefficient rows.
+Ensemble-level facts (number of trees, learning rate, sampling fractions)
+repeat on every row exactly as `aic` does today, and the metadata
+contract — level sets, column types, a canonical node inventory — carries
+over with its role unchanged. We stress that this is a design argument,
+not an implementation plan: the point is that nothing in the five
+principles or in the relation-representation discipline is specific to
+models that happen to be linear.
+
+## Limitations
+
+The present work has limits of two kinds, and we distinguish them
+honestly. The first kind is *scope deliberately excluded from this paper*.
+Offsets and observation weights are statistically routine and cheap to
+add, and were left out to keep the proof of concept — and the reviewer's
+task — minimal; the same holds for families beyond gaussian and binomial
+and for non-canonical links. These are specification work already sketched
+by the design, not open problems. The second kind is *genuine gaps in the
+current specification and implementation*. Interactions are accepted at
+fit time but rejected with an explicit error at prediction, because the
+dummy-reconstruction contract does not yet cover product terms. Contrasts
+are fixed to treatment coding; custom contrasts are unsupported.
+Uncertainty reporting stops at Wald intervals for coefficients — there are
+no prediction intervals, and for binomial models FbSQL returns
+probabilities only, with no class-label prediction or `type` argument.
+The `SETOF record` calling convention obliges the caller to write a column
+definition list; removing that burden (through generated views, or an
+implementation able to infer the output row type) is design work we have
+not done. And the reference implementation is single-node: fitting passes
+the data through an in-memory R engine, so FbSQL as implemented today says
+nothing about large-scale estimation — by declared non-goal, but the
+limitation is real for users with large relations.
+
+## Future work
+
+The directions that follow are research directions, not a roadmap. The
+language–engine separation invites *alternative engines*: a C
+implementation of the fitting path, GPU solvers, or distributed execution
+— including the possibility of delegating estimation to existing
+in-database engines such as MADlib's [@hellerstein2012madlib] behind the
+unchanged relation specification — with conformance in every case a
+testable property against the parity suite rather than a claim. The
+estimator surface can grow along the lines of the previous subsection,
+first to the remaining GLM families and then to tree ensembles realizing
+the node-grain atomic relation. On the language side, the open questions
+are the ones acknowledged above: call syntax that a future standard could
+bless, and an output-typing mechanism that makes the column definition
+list unnecessary. Finally, distribution: releasing the extension through
+PGXN and archiving the replication material places both the language and
+its evidence where the PostgreSQL and research communities, respectively,
+expect to find them.
 
 # Conclusion
 

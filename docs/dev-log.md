@@ -6,6 +6,66 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: Discussion 章の初稿執筆
+
+### Summary
+
+- `paper/paper.Rmd` の **Discussion 章のみ**を本文化。冒頭で「新結果は
+  なく、Design Principles 章が約束した accounting(トレードオフの清算)」
+  と位置付け。前章までに Discussion へ送った参照6箇所をすべて回収
+- 構成は指示どおり6小節: (9.1) One relation versus normalized relations
+  (2粒度混在は正規化の教科書的分解対象と認めた上で「正規化と閉包性が
+  衝突するとき FbSQL は一貫して閉包性を選び、意図的に代償を払う」。
+  行数=term 数で反復コストは小さいが "not a free lunch" と明記)、
+  (9.2) Metadata as part of the language(実装の便宜ではなく言語仕様:
+  xlevels / term_labels / coef_terms / data_classes は predict のためでなく
+  **relation を self-describing にする**ため。意味が session 状態でなく
+  relation とともに移動する。meta_version = 解釈契約の互換ハンドル)、
+  (9.3) SQL standard versus practical SQL(named notation は ISO 標準に
+  ないと認めつつ、多引数統計関数には自然。BigQuery ML の文法拡張路線を
+  設計上の対照として再言及(Related Work の予告を回収)。「将来の標準化
+  議論への one data point」と最大限慎重な表現。標準 SQL は否定しない)、
+  (9.4) Beyond GLM(Minimum Atomic Relation を再提示し、RF / LightGBM /
+  XGBoost では node 粒度(tree/node/split/threshold/leaf/missing方向)。
+  解釈は GROUP BY、予測は traversal として relation だけから再構築可能。
+  「実装計画ではなく設計論」と明記)、(9.5) Limitations(**2種を区別**:
+  意図的除外 = offset/weights/追加 family/非 canonical link(仕様作業)
+  vs 真のギャップ = interaction・custom contrasts・prediction interval・
+  class prediction・列定義リスト・single-node 実装(non-goal でも実害は
+  あると正直に))、(9.6) Future work(roadmap でなく研究方向: 代替
+  エンジン(C/GPU/分散、MADlib への委譲も適合性は parity で testable)、
+  family → 木系、標準化しうる呼び出し構文、出力型推論、PGXN + アーカイブ)
+- 文体: "we are right" 系を避け、design trade-off の語彙で通した
+- 文献追加なし(codd1970relational / bigqueryml / hellerstein2012madlib
+  を再利用)
+
+### Changed Files
+
+- `paper/paper.Rmd`: Discussion 章の本文化のみ
+
+### Validation
+
+- `make html` → 成功。未解決引用なし
+- `make jss` → 成功(見出し `_` なし規約遵守)
+- `make clean` → 成功、生成物が git に残らないことを確認
+
+### Known Issues
+
+- 本文9章のうち残るは Conclusion のみ。Abstract(YAML)と keywords も未執筆
+- Computational details / Acknowledgments / Replication material 節
+  (JSS 慣行)が末尾 TODO コメントのまま
+
+### Next Step
+
+- Conclusion 章 + Abstract + keywords の初稿(それで本文完成。その後は
+  図表アセット(Figure 1〜4、Table 取込み)と Computational details 等の
+  JSS 定型節)
+
+Commit: `Draft discussion section`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: Experimental Evaluation 章の初稿執筆
 
 ### Summary
