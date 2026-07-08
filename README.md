@@ -39,8 +39,9 @@ FROM fbsql.fit_glm(
 
 ## Not yet implemented
 
-- `predict_glm()` — the design (including model metadata such as factor
-  levels and contrasts) is being worked out in `docs/mvp-design.md`.
+- `predict_glm()` — the fit-side design is settled (a JSONB `metadata` column
+  carrying factor levels, contrasts, and term information will be added to the
+  `fit_glm()` output next); see `docs/mvp-design.md` for the schema.
 - Other families, non-canonical links, `weights` / `offset`.
 
 ## Development

@@ -6,6 +6,49 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: predict_glm() に向けた metadata 設計の確定(文書のみ)
+
+### Summary
+
+- `fit_glm()` 出力への **`metadata jsonb` 列(17列目)追加を正式決定**(実装は次回)
+- JSONB スキーマ(meta_version 1)を確定: response / term_labels / intercept /
+  data_classes / xlevels / contrasts / coef_terms の7フィールド + バージョン
+- フラット列(family, link, formula, n_obs 等)と重複する情報は metadata に持たない
+  (単一情報源の原則。例外は整合性チェック用の coef_terms)
+- novel factor level ポリシーは metadata ではなく `predict_glm(on_new_levels =>
+  'error'|'na')` の引数として設計(既定 'error'、fbrglm 踏襲)— 未決事項を解消
+- 既存 pg_regress への影響なしを確認(全テストが明示的列リストで SELECT しているため、
+  列追加で expected は変わらない)
+- コード・テスト・expected の変更は一切なし(設計文書のみ)
+
+### Changed Files
+
+- `docs/mvp-design.md`: §4 の「推奨」を「確定した設計」に置換(スキーマ表、
+  各フィールドの R での由来と predict での役割、テスト影響、トレードオフの明文化、
+  次回実装の作業範囲)。§3 に17列目追加の予告
+- `TODO.md`: metadata 形式と novel level ポリシーの未決事項2件を解決済み化、
+  「MVP 後」を実装順に再構成(metadata 列実装 → predict_glm MVP)
+- `README.md`: predict_glm 未実装の記述を「fit側設計は確定済み」に更新
+
+### Validation
+
+- 文書のみの変更のため実行検証なし(git status clean を確認)
+
+### Known Issues
+
+- JSONB 内部スキーマは事実上 API の一部になる — meta_version で管理し、変更時は
+  バージョンを上げる規律が必要(論文にもスキーマを明記予定)
+
+### Next Step
+
+- `fbsql.glm_fit` に `metadata` 列を追加し、`fit_glm()` で全フィールドを一括実装 +
+  `fit_glm_metadata` テスト新設(1回分の実装作業。スキーマ確定済みなので迷いなし)
+
+Commit: `Document fit_glm metadata design`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: fit_glm() MVP の品質固め(エラー処理・テスト整理・文書同期)
 
 ### Summary

@@ -193,6 +193,8 @@ term 粒度の列とモデル全体で1値の列を同居させ、後者は**全
   な記録)の思想を relation の列として継承したもの。
 - `link` は §4 の metadata 問題への最小限の布石として MVP から含める
   (コストがほぼゼロで、predict の逆リンク計算に必須のため)。
+- **2026-07-08 の設計確定により、次回実装で 17 列目として `metadata jsonb` を追加する**
+  (スキーマは §4 参照)。
 
 ---
 
@@ -243,16 +245,84 @@ treatment contrast。**この規約こそが predict 時に再現すべき情報
   - 短所: 係数表と粒度の異なる行が混在し(term 行 + 水準行)、relation の意味論が
     濁る。交互作用・変換を含む terms の表現が事実上不可能
 
-### 推奨(現時点の設計方針)
+### 確定した設計(2026-07-08)
 
-**案A(JSONB 列)を第一候補とする。** 閉包性(1 relation)を守ることが FbSQL の
-核心であり、JSONB は PostgreSQL の標準型なので「SQL らしさ」の毀損は限定的、と
-論文で議論可能。ただし **MVP では実装しない**。MVP の出力には `link` 列のみ含め、
-xlevels / contrasts / terms の格納形式は `predict_glm()` 着手時に確定する
-(TODO.md に未決事項として記録)。
+**案A を正式採用**: `fit_glm()` の出力に `metadata jsonb` 列を追加し、**17列**にする。
 
-novel factor level への応答は fbrglm の設計(既定 error、opt-in で NA)を踏襲し、
-`predict_glm(on_new_levels => 'error' | 'na')` のような引数とする案を第一候補とする。
+決定事項:
+
+1. **列名は `metadata`**。`fbsql.glm_fit` 型の中では意味が自明で、出力リレーションは
+   FbSQL が定義するため衝突リスクもない。
+2. **全行に同一の JSONB を繰り返す**。AIC 等のモデル粒度スカラー列と同じ方針であり、
+   「閉包性のための意図的な非正規化」として一貫する。
+3. **スキーマはバージョン管理する**(`meta_version` フィールド)。JSONB 内部スキーマは
+   事実上 API の一部になるため、互換性判定の手段を最初から埋め込む。
+4. **フラット列と重複する情報は入れない**(単一情報源の原則)。`family` / `link` /
+   `formula` / `n_obs` / `n_used` / `n_dropped` はフラット列から読む。唯一の例外は
+   `coef_terms`(下記の通り整合性チェックという独自の役割を持つ)。
+5. **novel factor level ポリシーは metadata に入れない**。これは学習時の事実ではなく
+   予測時の選択なので、`predict_glm(on_new_levels => 'error' | 'na')`(既定 `'error'`、
+   fbrglm の設計を踏襲)という**引数**として設計する。
+
+#### JSONB スキーマ案(meta_version 1)
+
+```json
+{
+  "meta_version": 1,
+  "response": "y",
+  "term_labels": ["x1", "gender"],
+  "intercept": true,
+  "data_classes": {"y": "numeric", "x1": "numeric", "gender": "factor"},
+  "xlevels":   {"gender": ["F", "M", "Other"]},
+  "contrasts": {"gender": "contr.treatment"},
+  "coef_terms": ["(Intercept)", "x1", "genderM", "genderOther"]
+}
+```
+
+| フィールド | R での由来 | `predict_glm()` が再現するもの |
+|---|---|---|
+| `meta_version` | —(FbSQL が付与) | スキーマ互換性の判定 |
+| `response` | `terms(fit)` の応答変数 | 予測対象列名(出力列名 `<response>_predicted` の元にもなる) |
+| `term_labels` | `attr(terms(fit), "term.labels")` | design matrix の再構築。formula 文字列の再パースに依存しないため、将来の SQL / C 実装でも解釈可能 |
+| `intercept` | `attr(terms(fit), "intercept")` | Intercept 列の有無 |
+| `data_classes` | `attr(terms(fit), "dataClasses")` | 新データ列の型解釈(character → factor 変換等を学習時と同一規約で再現) |
+| `xlevels` | `fit$xlevels` | 水準全集合。参照水準の特定・novel level 検出・ダミー列の整合(係数表には参照水準が現れないため必須) |
+| `contrasts` | `fit$contrasts` | factor → ダミー列の対応規則(現状 treatment 固定だが明示保存し、セッション設定差異による drift を排除) |
+| `coef_terms` | `names(coef(fit))` | 係数の正準順序と完全性チェック。**行順序は保証されない**(順序独立性)ため、predict は `term` 列を名前で照合し、`coef_terms` と突き合わせて欠落・重複を検出する |
+
+- gaussian・数値説明変数のみ: `xlevels` / `contrasts` は空オブジェクト `{}`
+- binomial: 同一スキーマ(family / link はフラット列にあるため metadata には持たない)
+- factor あり: `xlevels` / `contrasts` が埋まる
+
+`predict_glm()` MVP(数値のみ)が必須とするフィールド: `coef_terms`, `intercept`,
+`data_classes`。factor 対応時に `term_labels`, `xlevels`, `contrasts` を使う。
+
+#### 既存テストへの影響
+
+既存の pg_regress テストはすべて**明示的な列リスト**で SELECT しているため、17列目の
+追加で expected は変わらない(`fit_glm_errors` の `SELECT *` は行を出力する前にエラーに
+なるケースのみ)。metadata 専用テストを新設する(`jsonb_pretty(metadata)` で全体、
+`metadata -> 'xlevels'` 等で個別フィールド。jsonb はキーが正規化されるため expected は
+決定的)。
+
+#### トレードオフの明文化(論文 Discussion 用)
+
+- **別 relation(案B)**: 正規化としては綺麗だが「1 relation in / 1 relation out」の
+  閉包性を破る — 不採用。
+- **JSONB の行反復(案A)**: 非正規化だが、モデル粒度スカラー列と同じ「閉包性のための
+  意図的トレードオフ」として一貫した説明ができる — 採用。
+- **SQL からの参照・監査可能性**: `metadata -> 'xlevels'` のように標準の jsonb 演算子で
+  モデルの学習時条件を検査できる。R/Python のモデルオブジェクトのブラックボックス性に
+  対する FbSQL の回答であり、論文で積極的に主張できる点。
+- **スキーマ安定性**: JSONB 内部スキーマは API の一部になる。`meta_version` で管理し、
+  論文にもスキーマを明記する。
+
+#### 次回実装(1回分の作業)
+
+`fbsql.glm_fit` に `metadata` 列を追加(17列)し、`fit_glm()` で全フィールドを一括実装
+(すべて fit オブジェクトから安価に取得できるため分割する理由がない)。
+`fit_glm_metadata` テストを新設。extension は未リリースのため
+`sql/fbsql--0.1.0.sql` を直接更新する(バージョンファイル分割は不要)。
 
 ---
 

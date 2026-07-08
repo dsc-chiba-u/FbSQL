@@ -19,12 +19,13 @@
 - [x] `.github/workflows/regress.yml`(Docker イメージ上で installcheck)
       — `docker-build.yml` が build + installcheck を実行する形で実現済み(別ファイル不要)
 
-## MVP 後(実装順未定)
+## MVP 後(実装順)
 
+- [ ] `fit_glm()` に `metadata jsonb` 列(17列目)を実装 + `fit_glm_metadata` テスト新設
+      (設計確定済み: `docs/mvp-design.md` §4。predict_glm の前提。次回の実装タスク)
+- [ ] `predict_glm()` MVP(数値のみ → factor 対応の順。metadata 列実装が先行条件)
 - [ ] PL/R エラーの1行目(`R interpreter expression evaluation error`)を整形できるか調査
       (メッセージ本体は DETAIL に出ており実害は小さい。優先度低)
-
-- [ ] `predict_glm()` — metadata 格納形式(JSONB 案A)の確定が先行条件(下記「未決事項」)
 - [ ] family 追加(poisson → Gamma → その先は論文スコープと相談)
 - [ ] 非 canonical link(`binomial(link=probit)` 等)の family 指定記法
 - [ ] profile likelihood 信頼区間(MVP は Wald 固定)
@@ -36,11 +37,13 @@
 
 ## 未決事項(実装前に決める)
 
-- [ ] **predict 用 metadata の格納形式**: JSONB 列(案A)を第一候補とするが、
-      xlevels / contrasts / terms の具体的なスキーマは `predict_glm()` 着手時に確定
-      (`docs/mvp-design.md` §4)
-- [ ] **novel factor level ポリシー**: `predict_glm(on_new_levels => 'error'|'na')` 案
-      (fbrglm の設計を踏襲)で良いか
+- [x] **predict 用 metadata の格納形式**: 決定(2026-07-08) — `fit_glm()` 出力の
+      17列目として `metadata jsonb` を追加(全行同値)。スキーマは meta_version 1:
+      response / term_labels / intercept / data_classes / xlevels / contrasts /
+      coef_terms(フラット列と重複する family 等は持たない)。`docs/mvp-design.md` §4
+- [x] **novel factor level ポリシー**: 決定(2026-07-08) — metadata ではなく
+      `predict_glm(on_new_levels => 'error'|'na')` の引数とする(既定 'error'、
+      fbrglm の設計を踏襲)
 - [x] **関数の名前空間**: 解決(2026-07-08) — 正式APIは `fbsql.fit_glm()`。
       `public.fit_glm()` は作らない。README・論文では `SET search_path TO fbsql, public;`
       で短く書けることを示す(`docs/mvp-design.md` §2)
