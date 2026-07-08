@@ -1,0 +1,53 @@
+<mxfile host="app.diagrams.net" type="device">
+  <diagram id="fbsql-figure3" name="Figure 3 — Implementation layers">
+    <mxGraphModel dx="1000" dy="800" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1360" pageHeight="880" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="spec" value="&lt;b&gt;&lt;font style=&quot;font-size: 14px&quot; color=&quot;#4477AA&quot;&gt;FbSQL language specification — the fixed part&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#4477AA&quot;&gt;signatures · formula semantics (R&#39;s glm) · model relation columns · metadata schema · error policies&lt;br&gt;&lt;i&gt;defined independently of any engine&lt;/i&gt;&lt;/font&gt;"
+                style="rounded=1;html=1;fillColor=#F0F5FB;strokeColor=#4477AA;strokeWidth=1.5;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="200" y="20" width="960" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ext" value="&lt;b&gt;PostgreSQL extension — reference implementation&lt;/b&gt;&lt;br&gt;one realization; engines are replaceable (C · GPU · distributed)"
+                style="rounded=1;html=1;fillColor=#F5F5F5;strokeColor=#999999;dashed=1;verticalAlign=top;align=left;spacing=14;fontSize=12;fontColor=#555555;" vertex="1" parent="1">
+          <mxGeometry x="80" y="180" width="1200" height="430" as="geometry" />
+        </mxCell>
+
+        <mxCell id="fit3" value="&lt;b&gt;fit_glm()&lt;/b&gt;&lt;br&gt;&lt;b&gt;PL/R → stats::glm()&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#666666&quot;&gt;R as internal engine&lt;br&gt;(never exposed to the user)&lt;/font&gt;"
+                style="rounded=1;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="160" y="260" width="400" height="150" as="geometry" />
+        </mxCell>
+
+        <mxCell id="predict3" value="&lt;b&gt;predict_glm()&lt;/b&gt;&lt;br&gt;&lt;b&gt;PL/pgSQL — no R&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#666666&quot;&gt;computes from the model relation alone&lt;/font&gt;"
+                style="rounded=1;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="790" y="260" width="400" height="150" as="geometry" />
+        </mxCell>
+
+        <mxCell id="model3" value="&lt;font style=&quot;font-size: 14px&quot; color=&quot;#7A4A00&quot;&gt;&lt;b&gt;Model relation&lt;/b&gt;&lt;/font&gt;&lt;br&gt;term rows + metadata&lt;br&gt;&lt;i&gt;&lt;font color=&quot;#7A4A00&quot;&gt;the boundary artifact: all that crosses the engines&lt;/font&gt;&lt;/i&gt;"
+                style="rounded=1;html=1;fillColor=#FFF7E6;strokeColor=#CC7722;strokeWidth=3;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="530" y="440" width="300" height="130" as="geometry" />
+        </mxCell>
+
+        <mxCell id="verify" value="&lt;b&gt;Verification — conformance enforced continuously&lt;/b&gt;&lt;br&gt;pg_regress conformance suite · R parity at 4 decimals · pinned Docker environment · CI on every commit&lt;br&gt;&lt;i&gt;any replacement engine must pass the same suite&lt;/i&gt;"
+                style="rounded=1;html=1;fillColor=#F5F5F5;strokeColor=#555555;strokeWidth=1.5;fontSize=11;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="200" y="670" width="960" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a1" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;strokeWidth=1.5;" edge="1" parent="1" source="spec" target="ext">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a2" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#CC7722;strokeWidth=1.5;" edge="1" parent="1" source="fit3" target="model3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a3" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#CC7722;strokeWidth=1.5;" edge="1" parent="1" source="model3" target="predict3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a4" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;strokeWidth=1.5;" edge="1" parent="1" source="ext" target="verify">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

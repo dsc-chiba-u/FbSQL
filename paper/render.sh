@@ -39,6 +39,7 @@ skel <- system.file("rmarkdown", "templates", "jss", "skeleton",
 file.copy(file.path(skel, c("jss.cls", "jss.bst", "jsslogo.jpg")),
           build, overwrite = TRUE)
 file.copy("references.bib", build, overwrite = TRUE)
+file.copy("figures", build, recursive = TRUE)
 
 ## Keep the JSS-form metadata below in sync with paper.Rmd's YAML.
 lines <- readLines("paper.Rmd")

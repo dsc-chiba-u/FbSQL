@@ -7,18 +7,7 @@
 #       fbsql-paper Rscript figures/figure1_system_overview.R
 # A hand-editable draw.io source with the same layout is kept alongside
 # (figure1_system_overview.drawio).
-#
-# Caption (for paper.Rmd, kept here until the figure is wired in):
-#   Figure 1: FbSQL system overview. The upper layer is the language:
-#   fit_glm() maps a training relation and a formula to a model relation,
-#   and predict_glm() maps the model relation and a scoring relation to a
-#   prediction relation -- every arrow is a relation, and the model
-#   relation is the central artifact: queryable, joinable, auditable, and
-#   self-contained through its metadata column. The lower layer is the
-#   reference implementation, a PostgreSQL extension in which fitting
-#   delegates to R's glm() while prediction is computed in PL/pgSQL from
-#   the model relation alone. The engine below the boundary is replaceable
-#   without changing any SQL above it.
+# Caption lives in paper/paper.Rmd (fig.cap of the fig1 chunk).
 
 library(grid)
 

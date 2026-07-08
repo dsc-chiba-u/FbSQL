@@ -1,0 +1,66 @@
+<mxfile host="app.diagrams.net" type="device">
+  <diagram id="fbsql-figure2" name="Figure 2 — Running example">
+    <mxGraphModel dx="1000" dy="800" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1360" pageHeight="880" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="customer" value="&lt;b&gt;customer relation&lt;/b&gt;&lt;br&gt;customer_id · created_at · age · gender · churn_flag&lt;br&gt;&lt;font color=&quot;#666666&quot;&gt;12 rows in 2025 · 5 rows in 2026&lt;/font&gt;"
+                style="rounded=1;html=1;fillColor=#FFFFFF;strokeColor=#4477AA;strokeWidth=1.5;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="490" y="20" width="380" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="fit" value="&lt;b&gt;fit_glm()&lt;/b&gt;&lt;br&gt;formula =&amp;gt; &lt;b&gt;&#39;churn_flag ~ age + gender&#39;&lt;/b&gt;&lt;br&gt;family =&amp;gt; &#39;binomial&#39;&lt;br&gt;relation =&amp;gt; 2025 rows"
+                style="rounded=1;html=1;fillColor=#FFFFFF;strokeColor=#4477AA;strokeWidth=1.5;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="250" width="350" height="170" as="geometry" />
+        </mxCell>
+
+        <mxCell id="model" value="&lt;font style=&quot;font-size: 15px&quot; color=&quot;#7A4A00&quot;&gt;&lt;b&gt;Model relation&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;br&gt;(Intercept) · age · genderM · genderOther"
+                style="rounded=1;html=1;fillColor=#FFF7E6;strokeColor=#CC7722;strokeWidth=3;verticalAlign=top;spacing=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="510" y="220" width="330" height="240" as="geometry" />
+        </mxCell>
+
+        <mxCell id="meta2" value="metadata: xlevels · contrasts · terms"
+                style="rounded=1;html=1;fillColor=#FDEBD0;strokeColor=#CC7722;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="530" y="340" width="290" height="32" as="geometry" />
+        </mxCell>
+
+        <mxCell id="modelnote2" value="&lt;i&gt;the only state fitting hands to prediction&lt;/i&gt;"
+                style="text;html=1;align=center;fontSize=10;fontColor=#7A4A00;" vertex="1" parent="1">
+          <mxGeometry x="510" y="390" width="330" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="predict" value="&lt;b&gt;predict_glm()&lt;/b&gt;&lt;br&gt;relation =&amp;gt; 2026 rows&lt;br&gt;model =&amp;gt; model relation&lt;br&gt;on_new_levels =&amp;gt; &#39;error&#39; | &#39;na&#39;"
+                style="rounded=1;html=1;fillColor=#FFFFFF;strokeColor=#4477AA;strokeWidth=1.5;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="920" y="250" width="350" height="170" as="geometry" />
+        </mxCell>
+
+        <mxCell id="prediction" value="&lt;b&gt;Prediction relation&lt;/b&gt;&lt;br&gt;customer_id · … · &lt;b&gt;churn_flag_predicted&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#666666&quot;&gt;same rows as the 2026 input&lt;/font&gt;"
+                style="rounded=1;html=1;fillColor=#FFFFFF;strokeColor=#4477AA;strokeWidth=1.5;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="920" y="540" width="350" height="130" as="geometry" />
+        </mxCell>
+
+        <mxCell id="edgenote" value="&lt;i&gt;Edge rows stay inside SQL semantics:&lt;/i&gt;&lt;br&gt;c104&amp;nbsp;&amp;nbsp;NULL age → row kept, NULL prediction&lt;br&gt;c105&amp;nbsp;&amp;nbsp;unseen gender &#39;Nonbinary&#39; → error (default)&lt;br&gt;or NULL for that row with on_new_levels =&amp;gt; &#39;na&#39;"
+                style="rounded=1;html=1;fillColor=none;strokeColor=#BBBBBB;dashed=1;fontSize=10;fontColor=#666666;align=left;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="110" y="540" width="620" height="130" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" value="2025 rows — churn_flag observed" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;strokeWidth=1.5;fontSize=10;verticalAlign=bottom;" edge="1" parent="1" source="customer" target="fit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="2026 rows — churn_flag unknown" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;strokeWidth=1.5;fontSize=10;verticalAlign=bottom;" edge="1" parent="1" source="customer" target="predict">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#CC7722;strokeWidth=1.5;" edge="1" parent="1" source="fit" target="model">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#CC7722;strokeWidth=1.5;" edge="1" parent="1" source="model" target="predict">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#333333;strokeWidth=1.5;" edge="1" parent="1" source="predict" target="prediction">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

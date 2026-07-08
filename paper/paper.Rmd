@@ -69,6 +69,7 @@ output:
   html_document:
     toc: true
     number_sections: true
+    fig_caption: true
 bibliography: references.bib
 ---
 
@@ -542,13 +543,10 @@ Both functions live in the `fbsql` schema; the examples in this paper
 assume `SET search_path TO fbsql, public;` and write them unqualified.
 Figure 1 gives the overview: every arrow in it is a relation.
 
-<!-- TODO(Figure 1, figures/system_overview.pdf, drawn for the paper):
-     data-flow diagram. Left: training relation (any SQL query) + formula +
-     family entering fit_glm; center: the 17-column model relation as a
-     genuine table; right: model relation + scoring relation entering
-     predict_glm, producing the scoring relation + <response>_predicted.
-     Annotate that no arrow carries a model object — every edge is a
-     relation. -->
+```{r fig1, echo=FALSE, out.width="100%", fig.cap="FbSQL system overview. The upper layer is the language: fitting maps a training relation and a formula to a model relation, and prediction maps the model relation and a scoring relation to a prediction relation --- every arrow is a relation. The model relation is the central artifact: queryable, joinable, auditable, and self-contained through its metadata column. The engine below the boundary is replaceable without changing any SQL above it."}
+knitr::include_graphics(if (knitr::is_latex_output())
+    "figures/figure1_system_overview.pdf" else "figures/figure1_system_overview.svg")
+```
 
 ## Formula-based model specification
 
@@ -627,12 +625,10 @@ vocabulary R users know from model-tidying conventions (`term`,
 identifiers, so the relation is immediately readable from both sides of
 the language boundary.
 
-<!-- TODO(Figure 2, figures/running_example.pdf, drawn for the paper):
-     the customer table split by DATE_PART('YEAR', created_at); the 2025
-     partition flowing into fit_glm and materializing as logit_model with
-     its four coefficient rows sketched; logit_model + the 2026 partition
-     flowing into predict_glm and yielding customer_id +
-     churn_flag_predicted. -->
+```{r fig2, echo=FALSE, out.width="100%", fig.cap="The running example as one relational circuit. The same customer table supplies the 2025 cohort for fitting and the 2026 cohort for scoring, and the fitted churn model passes between the two functions as an ordinary relation --- nothing outside the diagram carries state. The awkward rows of production scoring data (a NULL age, an unseen gender level) are handled inside SQL's own semantics rather than outside the relational world."}
+knitr::include_graphics(if (knitr::is_latex_output())
+    "figures/figure2_running_example.pdf" else "figures/figure2_running_example.svg")
+```
 
 Returning a relation rather than an object has three consequences that
 motivate the design. First, *composition*: the model can be materialized
@@ -812,13 +808,10 @@ engine is whatever machinery produces and consumes relations with exactly
 those properties — currently an embedded R interpreter behind `fit_glm()`
 and plain PL/pgSQL behind `predict_glm()`.
 
-<!-- TODO(Figure 3, figures/implementation_layers.pdf, drawn for the
-     paper): layered concept diagram — Language Specification (signatures,
-     formula semantics, 17-column model relation, metadata schema) on top;
-     PostgreSQL Extension as the delivery vehicle; PL/R as the embedded
-     glue; R glm() as the current estimation engine; the model Relation as
-     the output. Annotate the lower layers as replaceable (C, GPU, MADlib
-     backend, distributed engines) with the top layer invariant. -->
+```{r fig3, echo=FALSE, out.width="100%", fig.cap="The implementation as layers. The language specification is the fixed part; the PostgreSQL extension is one realization of it, with R behind fitting and no R behind prediction, so the model relation is the boundary artifact --- the only thing that crosses between the two engines. The verification layer enforces conformance continuously, which is what makes the engines replaceable in practice and not only in principle."}
+knitr::include_graphics(if (knitr::is_latex_output())
+    "figures/figure3_implementation_layers.pdf" else "figures/figure3_implementation_layers.svg")
+```
 
 Figure 3 sketches the layering. The property that makes the separation
 real, rather than aspirational, is that the interface between the layers
@@ -930,11 +923,8 @@ summarizes the flow: the `customer` table feeds `fit_glm()`, which yields a
 model relation; the model relation and the scoring rows feed
 `predict_glm()`, which yields a prediction relation.
 
-<!-- TODO(Figure 2 is referenced here and in the Language Design section;
-     content spec: customer -> fit_glm -> model relation (logit_model, four
-     coefficient rows sketched) -> predict_glm (together with the 2026
-     rows) -> prediction relation (customer_id + churn_flag_predicted).
-     Asset: figures/running_example.pdf, drawn for the paper. -->
+<!-- Figure 2 itself is placed at its first reference in the Language
+     Design section; this section references it again in prose. -->
 
 ## Dataset
 
@@ -1167,14 +1157,13 @@ dimension-by-dimension results are in the comparison table introduced in
 the *Related Work* section and in per-system design-notes tables in the
 companion repository (`results/summary/*_api_design_notes.csv`); this
 subsection reports the design differences the reproduction made
-observable, not the tables' every cell.
+observable, not the tables' every cell. Figure 4 recalls the three-group
+taxonomy in which the compared systems sit.
 
-<!-- TODO(Figure 4, figures/comparison_taxonomy.pdf, drawn for the paper):
-     the three-group taxonomy as a diagram — In-database SQL-ML (MADlib,
-     PostgresML, FbSQL), SQL-on-engine ML (Spark MLlib, Hivemall),
-     SQL-adjacent ML (H2O-3 + Sparkling Water) — annotated with where the
-     model lives in each group (side tables / catalogs / relation; object;
-     cluster). -->
+```{r fig4, echo=FALSE, out.width="100%", fig.cap="Three ways SQL reaches machine learning, grouped by where the modeling computation lives relative to the SQL language. The groups differ in what the user must leave SQL to do and in where the fitted model resides: relations, side tables, or catalogs inside the database; host-language objects beside the engine's SQL dialect; or an external cluster reached by data conversion. The grouping organizes the comparison; it does not rank the systems."}
+knitr::include_graphics(if (knitr::is_latex_output())
+    "figures/figure4_system_taxonomy.pdf" else "figures/figure4_system_taxonomy.svg")
+```
 
 **MADlib.** Numerically, MADlib fits the same model: all four coefficients
 agree with FbSQL and R to four decimals, and one standard error differs in

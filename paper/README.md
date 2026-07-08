@@ -36,8 +36,10 @@ paper/
 |---|---|---|
 | `tables/related_work.tex` | FbSQL-experiments `results/tables/related_work.md` (6 systems x 19 columns), converted/condensed for print | TODO |
 | `tables/running_example.tex` | FbSQL-experiments `results/summary/running_example_parity.csv` + the per-system summaries | TODO |
-| `figures/system_overview.pdf` | drawn for the paper (fit_glm / predict_glm data flow; relation in -> relation out) | TODO |
-| `figures/running_example.pdf` | drawn for the paper (2025 fit -> 2026 predict on the customer table) | TODO |
+| `figures/figure1_system_overview.*` | drawn for the paper (language layer vs replaceable engine; model relation central) | done |
+| `figures/figure2_running_example.*` | drawn for the paper (2025 fit -> 2026 predict on the customer table) | done |
+| `figures/figure3_implementation_layers.*` | drawn for the paper (specification / extension / verification layers) | done |
+| `figures/figure4_system_taxonomy.*` | drawn for the paper (in-database / SQL-on-engine / SQL-adjacent typology) | done |
 
 ## Build targets
 

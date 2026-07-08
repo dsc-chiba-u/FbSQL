@@ -6,6 +6,75 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: Figure 2〜4 の作成と全図の本文配線
+
+### Summary
+
+- **Figure 2(running example)/ Figure 3(implementation layers)/
+  Figure 4(system taxonomy)を Figure 1 と同一スタイルで作成**
+  (各図 .R 生成ソース + SVG + PDF + .drawio の4形式。配色・フォント・
+  線幅・角丸を Figure 1 の定数から踏襲、白黒印刷でも判別可能)
+- Figure 2: customer relation を頂点に 2025 rows → fit_glm() /
+  2026 rows → predict_glm() の二分岐、中央に Model relation(橙・強調、
+  "the only state fitting hands to prediction")、右下に Prediction
+  relation(churn_flag_predicted)。formula 文字列を明記。c104 NULL /
+  c105 novel level は左下の小さな破線ノートに
+- Figure 3: 上から Language specification("the fixed part")→
+  PostgreSQL extension(fit = PL/R → stats::glm() / predict = PL/pgSQL
+  no R、その境界に Model relation = "the boundary artifact")→
+  Verification 層(pg_regress · R parity · Docker · CI、"any replacement
+  engine must pass the same suite")
+- Figure 4: 3群の類型図(In-database = FbSQL・MADlib・PostgresML /
+  SQL-on-engine = Spark・Hivemall / SQL-adjacent = H2O)。各カードに
+  呼び出し面と「モデルの所在」を1行ずつ。脚注 "a typology, not a
+  ranking"。FbSQL カードのみ枠を model relation 色で控えめに強調
+- **全4図を paper.Rmd に配線**: TODO コメントを knitr チャンク
+  (`include_graphics`、latex 出力なら PDF / それ以外は SVG)+
+  fig.cap(2〜4文、図の意味を説明する caption)に置換。図の配置は
+  初出参照位置(Fig1 = §Design goals、Fig2 = §Relation representation、
+  Fig3 = §Separation、Fig4 = §Comparative evaluation)で、LaTeX の
+  自動番号が本文の Figure 1〜4 表記と一致することを確認。
+  Evaluation に Figure 4 への1文参照を追加(許可範囲の最小変更)。
+  html_document に fig_caption: true を追加
+- **render.sh の jss ビルドに figures/ のコピーを追加**(一時ビルド
+  ディレクトリに図が無く include_graphics が失敗するため)
+- README の planned-assets 表を更新(4図 done、tables は TODO のまま)
+
+### Changed Files
+
+- `paper/figures/figure{2,3,4}_*.{R,svg,pdf,drawio}`: 新規(12ファイル)
+- `paper/paper.Rmd`: 図チャンク + caption 配線、fig_caption 有効化、
+  Figure 4 参照1文(本文の議論は無変更)
+- `paper/render.sh`: figures/ を jss ビルドへコピー
+- `paper/figures/figure1_system_overview.R`: caption 置き場コメント整理
+- `paper/README.md`: planned-assets 表の更新
+
+### Validation
+
+- 3図とも生成成功、PDF を目視確認(Figure 2 はコホートラベルと矢印の
+  重なりを1回修正)。drawio 3本は XML well-formed を確認
+- `make html` → 成功(4図 SVG 埋め込み + caption 表示)
+- `make jss` → 成功(**30ページ、Figure 1〜4 が caption 付きで正順に
+  挿入**されることを pdftotext で確認)
+- `make clean` → 成功、生成物が git に残らないことを確認
+
+### Known Issues
+
+- 残る図表アセットは Table 2(customer)と比較表・parity 表の紙面版
+  (experiments 側生成 → tables/ 取込み)のみ
+- 図の caption は fig.cap(チャンクヘッダ1行)管理のため長文編集は
+  やや不便(必要になれば bookdown の text reference へ移行を検討)
+
+### Next Step
+
+- 比較表(related_work)と Table 2 の紙面版生成(experiments 側)→
+  paper への取込み、その後 JSS 定型節(Computational details 等)
+
+Commit: `Add remaining paper figures`(本エントリを含むコミット)。
+push 後の `git status`: .DS_Store 系を除き clean。
+
+---
+
 ## 2026-07-08: Figure 1(System Overview)の作成
 
 ### Summary
