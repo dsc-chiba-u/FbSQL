@@ -57,9 +57,181 @@ bibliography: references.bib
 
 # Design Principles
 
-<!-- TODO: the five SQL design principles (set-oriented, declarative,
-     closure, order independence, NULL semantics) and how each maps to a
-     concrete FbSQL specification decision. -->
+FbSQL starts from a deliberately narrow question: if statistical modeling
+is to be written *in* SQL, rather than merely invoked *from* SQL, which
+properties of the language must be preserved? The contribution is therefore
+not the ability to call R's `glm()` from a database — PL/R [@plr] has
+provided embedded R in PostgreSQL for many years, and FbSQL indeed uses it
+internally — but a language design in which fitting and prediction obey the
+same principles as every other SQL operation. This section states the five
+principles that FbSQL adopts as design constraints. For each one we describe
+its meaning in SQL, the tension it creates with conventional statistical
+modeling interfaces, the FbSQL specification decision that resolves that
+tension, and the different trade-offs made by existing SQL-oriented machine
+learning systems. Throughout, `fit_glm()` and `predict_glm()` serve as the
+proof of concept: none of the principles is specific to generalized linear
+models, and the *Discussion* section sketches how the same constraints
+would shape future functions such as `fit_rf()`, `fit_lgbm()`, and
+`fit_xgb()`.
+
+## Set orientation
+
+SQL operates on relations as wholes: a query is a mapping between sets of
+rows, and the language provides no construct for visiting rows one at a
+time [@codd1970relational]. Statistical modeling interfaces are typically
+object-centric instead — fitting produces a model value, and prediction is
+a method invoked on that value, with the iteration over observations hidden
+in the host language. When such interfaces are transplanted into SQL, the
+row-at-a-time perspective tends to resurface on the prediction side: Apache
+MADlib [@hellerstein2012madlib] and PostgresML [@postgresml] both expose
+prediction as scalar functions evaluated once per row over a hand-supplied
+feature array, so the user, not the system, is responsible for assembling
+each observation into the form the model expects.
+
+FbSQL keeps both halves of the modeling workflow set-oriented. `fit_glm()`
+consumes a relation — any SQL query — and returns its result as a relation
+of coefficient rows. `predict_glm()` consumes two relations, the fitted
+model and the data to be scored, and returns a relation at the granularity
+of the scored data. There is no per-row prediction call and no user-managed
+feature vector; the unit of every operation is a relation.
+
+## Declarative specification
+
+SQL describes the result to be computed, not the procedure that computes
+it. Model specification in existing SQL-oriented systems is frequently
+operational: MADlib takes the independent variables as an SQL array
+expression string, and Apache Hivemall [@hivemall] trains on feature arrays
+of `index:value` strings that the user assembles by hand, so encoding
+categorical variables, constructing interaction columns, and keeping column
+order consistent with the coefficients are all user responsibilities.
+
+FbSQL adopts the formula notation of @chambers1992statistical as its model
+specification language: `'churn_flag ~ age + gender'` names a statistical
+relationship, and the system derives everything operational from it —
+factor levels, treatment contrasts, and the construction of the design
+matrix — following the same conventions as R's `glm()`. Spark MLlib
+[@meng2016mllib] demonstrates that formula-shaped specification is
+compatible with a distributed DataFrame system through its `RFormula`
+transformer, although with semantics that differ from R's (for example,
+frequency-based rather than alphabetical reference levels). PostgresML
+makes a different trade-off again: specification reduces to a task and an
+algorithm name, with every non-label column of the named relation treated
+as a feature — concise, but the statistical model itself is no longer
+something the user states.
+
+## Closure: relation in, relation out
+
+Relational algebra is closed: every operator consumes relations and
+produces a relation, which is what makes queries composable through
+subqueries, views, and common table expressions [@codd1970relational].
+This is where statistical modeling diverges most sharply from SQL
+practice. In nearly every system the fitted model is an opaque value that
+lives outside the data model: an S object in R, a `PipelineModel` in Spark
+(a JVM object graph persisted as a directory), a serialized binary model in
+PostgresML's catalog tables, or, in MADlib, a pair of side-effect output
+tables written by a void-returning training procedure. Once the model is
+not a relation, composition stops at the model boundary: the fitted object
+can only be handled by the system's own dedicated functions.
+
+The central design decision of FbSQL is that **the fitted model is a
+relation**. `fit_glm()` returns a single relation with one row per design
+matrix column (`term`, `estimate`, `std_error`, `statistic`, `p_value`,
+and Wald confidence bounds) together with model-level columns (`family`,
+`link`, `formula`, the complete-case counters, `aic`, `deviance`,
+`null_deviance`). The model can be materialized with `CREATE TABLE AS`,
+inspected with `SELECT`, joined, compared across refits, and audited —
+all with ordinary SQL. `predict_glm()` closes the loop: it consumes the
+model relation together with a data relation and returns the data with one
+appended `` `<response>_predicted` `` column. As evidence that this
+relation is a complete representation of the model rather than a projection
+of hidden state, the reference implementation of `predict_glm()` contains
+no R at all: it reconstructs the linear predictor and inverse link in
+PL/pgSQL purely from the coefficient rows and the metadata column.
+
+Keeping the output to exactly one relation requires two deliberate
+denormalizations. First, model-level scalars such as `aic` are repeated on
+every row of the coefficient relation. Second, the information needed to
+rebuild the design matrix at prediction time — factor levels, contrasts,
+term structure — is stored in a `metadata` JSONB column, likewise repeated
+on every row. A normalized design would split this into separate
+coefficient, model-summary, and metadata relations, but a multi-relation
+output would give up precisely the closure property on which composition
+rests, so FbSQL accepts the redundancy as an explicit trade-off (revisited
+in the *Discussion* section). Unlike a binary model object, the JSONB
+metadata remains inspectable from SQL — `metadata -> 'xlevels'` answers
+"which factor levels did this model see at training time?" as an ordinary
+query.
+
+Existing systems occupy different points on this spectrum rather than
+simply lacking the property. Spark MLlib preserves closure at the DataFrame
+level rather than the SQL level: `transform()` maps a DataFrame to a
+DataFrame, but the model itself stays a host-language object. Hivemall
+comes closest to relational closure among the systems we compare — its
+trained model is a genuine `(feature, weight)` table — but the features
+are integer indices without term semantics, and prediction must be
+assembled by hand from an explode, a join against the model table, and an
+explicitly written link function. MADlib and PostgresML rely on procedural
+interfaces: training writes state under a given name, and prediction is a
+scalar function that refers back to it.
+
+## Order independence
+
+Relations are unordered, and a query result carries no row order unless an
+`ORDER BY` is written. This principle has two consequences for FbSQL. The
+first concerns row order: FbSQL guarantees nothing about the row order of
+the fitted-model relation, so `predict_glm()` matches coefficients to terms
+by name and cross-checks the set of terms against the `coef_terms` metadata
+field, never by position. The contrast is MADlib's model representation,
+which stores coefficients, standard errors, and *p* values as parallel
+arrays without term names: position is the only semantics, and any
+downstream use depends on reconstructing the training-time column order.
+The second consequence concerns argument order. Statistical functions
+accumulate arguments quickly (`relation`, `formula`, `family`, and in the
+future offsets, weights, or tuning parameters), and positional calls become
+fragile as the list grows. FbSQL therefore specifies its calls with named
+notation — `fit_glm(relation => ..., formula => ..., family => ...)` — so
+that invocations are order independent and self-documenting. Named notation
+is PostgreSQL (and Oracle) syntax rather than standard SQL; we return to
+this limitation in the *Discussion* section.
+
+## NULL semantics
+
+SQL treats NULL as *unknown* under a three-valued logic, and NULLs
+propagate through expressions. The statistical counterpart is missing data,
+and existing systems answer the question independently of SQL's convention,
+each in a different way: PostgresML raises a hard error when a feature is
+NULL at prediction time; Spark's default pipeline fails at `transform()`
+while its `handleInvalid = "skip"` option silently drops rows, changing the
+granularity of the output; H2O-3 [@h2o] imputes column means by default.
+Each choice is defensible in its own context, but none follows from the
+semantics of the surrounding query language.
+
+FbSQL aligns the two traditions where they already agree. At fitting time
+it performs complete-case analysis, exactly matching the `na.omit` default
+of R's `glm()`, and reports rather than hides the effect through three
+model-level columns (`n_obs`, `n_used`, `n_dropped`). At prediction time a
+NULL predictor propagates to a NULL prediction — the result that SQL
+expression evaluation of the linear predictor would itself produce, and the
+relational rendering of R's `NA` prediction. No value is imputed, no row is
+dropped, and no error interrupts the query: the output keeps the
+granularity of the input, and NULL means exactly what it means everywhere
+else in SQL.
+
+## From glm to a family of modeling functions
+
+The five principles, not the estimator, define FbSQL. `glm()` was chosen as
+the proof of concept because it is small enough to specify completely and
+rich enough to exercise every principle — formulas, factors, links, missing
+data, and inference columns. Nothing in this section is specific to
+generalized linear models: for any future `fit_xxx()`, the design question
+each principle poses is the same, culminating in what we call the *Minimum
+Atomic Relation* question — what is the smallest relation that supports
+both the interpretation of a fitted model and the reconstruction of its
+predictions? The *Discussion* section sketches answers for tree ensembles
+(`fit_rf()`, `fit_lgbm()`, `fit_xgb()`), whose fitted models are naturally
+relations over split rules rather than coefficients. The claim of this
+paper is the language design; the estimator behind `fit_glm()` is
+deliberately ordinary.
 
 # FbSQL Language Design
 

@@ -6,6 +6,56 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: Design Principles 章の初稿執筆
+
+### Summary
+
+- `paper/paper.Rmd` の **Design Principles 章のみ**を本文化(他章は TODO のまま)。
+  導入 + 5原則(Set orientation / Declarative specification / Closure /
+  Order independence / NULL semantics)+ 締めの
+  「From glm to a family of modeling functions」の7小節構成
+- 各原則を「SQL における意味 → 統計モデリングとの緊張 → FbSQL の仕様決定 →
+  既存システムの異なるトレードオフ」の4点で記述
+- 必須の主張を反映: PL/R で glm を呼べること自体は貢献ではない(内部利用と明記)/
+  主張は SQL 設計原則に沿う DSL / glm は PoC で fit_rf・fit_lgbm・fit_xgb へ一般化 /
+  **モデルは relation**(predict_glm が R なしの PL/pgSQL で動くことを
+  「relation がモデルの完全表現である証拠」として使用)/ metadata JSONB と
+  モデル粒度列の行反復は閉包性維持のための意図的非正規化
+- 既存システムへの言い回しは慎重に統一("make different trade-offs" /
+  "expose model objects" / "rely on procedural interfaces" /
+  "preserve closure at the DataFrame level rather than the SQL level"。
+  "violate" は不使用)
+- 文献は既存 references.bib の9件のみ使用(codd1970relational,
+  chambers1992statistical, hellerstein2012madlib, meng2016mllib, plr,
+  postgresml, hivemall, h2o)。新規追加なし。JSS 専用マクロ(\proglang 等)は
+  html / jss 両ビルド互換のため未使用(投稿整形時に導入)
+
+### Changed Files
+
+- `paper/paper.Rmd`: Design Principles 章の本文化のみ
+
+### Validation
+
+- `make html` → 成功。未解決引用(`[@key]` / `???`)が出力に無いことを確認
+- `make jss` → 成功(paper-jss.pdf 233KB、本文反映を pdftotext で確認)
+- `make clean` → 成功、生成物が git に残らないことを確認
+
+### Known Issues
+
+- 章内から *Discussion* 節へ文中参照が3箇所ある(自動相互参照ではなく地の文)。
+  Discussion 執筆時に対応関係(非正規化・named argument・木系 Atomic Relation)を
+  忘れず回収すること
+
+### Next Step
+
+- Related Work 章の初稿(experiments の related_work.csv / 6システム比較表を素材に、
+  Design Principles 章の5原則の軸でレビュー)
+
+Commit: `Draft design principles section`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: 論文ビルド環境の固定 — make html / pdf / jss すべて成功
 
 ### Summary
