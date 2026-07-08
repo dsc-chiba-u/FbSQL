@@ -35,15 +35,35 @@ author:
 ## (../../fbrglm/paper/fbrglm-jss-draft.Rmd).
 
 abstract: >
-  TODO: abstract. One paragraph: the problem (SQL-ML systems trade away
-  SQL design principles), the proposal (FbSQL: a closure-preserving,
-  formula-based DSL; glm as proof of concept), the evidence (R-parity
-  PoC on PostgreSQL; design comparison with MADlib / PostgresML / Spark
-  MLlib / Hivemall / H2O), and the claim (language design, not a faster
-  glm).
+  Statistical modeling is increasingly performed inside SQL database
+  systems, where the data already resides. Existing systems for
+  in-database machine learning concentrate on computation — scalability,
+  algorithm coverage, and deployment — while the question of how
+  statistical modeling should be written *as SQL* has received far less
+  attention. This paper proposes FbSQL (Formula-based SQL), a statistical
+  modeling domain-specific language for SQL; although an open-source
+  PostgreSQL extension serves as its reference implementation, the
+  contribution is the language design. FbSQL treats five principles of
+  SQL — set orientation, declarativeness, closure, order independence,
+  and NULL semantics — as design constraints: models are specified with
+  R's formula notation, fitting and prediction both consume and return
+  relations, and the fitted model is itself a relation carrying
+  coefficient rows, model-level columns, and a queryable metadata column
+  that makes it self-contained, with no model object ever exposed. We
+  demonstrate the design on a customer-churn running example written
+  entirely in SQL and evaluate it in two ways: the reference
+  implementation reproduces R's `glm()` and `predict.glm()` at the tested
+  precision, and reproducible comparisons against Apache MADlib,
+  PostgresML, and Spark MLlib trace the systems' observable behavioral
+  differences to interface and representation choices. Generalized linear
+  models serve as the proof of concept; the design centers on the Minimum
+  Atomic Relation question — what is the smallest relation that supports
+  both interpretation and prediction — whose answers extend beyond GLMs
+  to estimators such as tree ensembles.
 
-## keywords TODO: e.g. SQL, PostgreSQL, generalized linear models,
-## formula interface, closure, relational model, PL/R
+## Keywords (used by the JSS build; keep in sync with render.sh):
+## SQL, PostgreSQL, statistical modeling, formula interface, generalized
+## linear models, domain-specific language, closure
 
 output:
   html_document:

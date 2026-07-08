@@ -6,6 +6,58 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: Abstract + keywords の執筆
+
+### Summary
+
+- `paper/paper.Rmd` の **Abstract のみ**を本文化(233語。指示の 200〜250語
+  内)。Conclusion は未着手のまま
+- 指示どおりの5要素を1段落に: Background(DB 内統計モデリングの需要増 +
+  「SQL言語としてどう書くか」は未検討)→ Objective(FbSQL の提案。
+  「PostgreSQL extension は reference implementation であり、貢献は
+  **SQL DSL = 言語設計**」を明文)→ Methods(5原則を design constraints に /
+  formula 指定 / relation-in relation-out / モデル自体が relation で
+  self-contained、model object 非露出)→ Results(R glm()/predict.glm()
+  との一致、SQL のみの running example、MADlib / PostgresML / Spark との
+  再現可能な比較 — **性能への言及なし**)→ Conclusion(glm は PoC、
+  Minimum Atomic Relation の問いが GLM を超えて木系へ延びる)
+- implementation details / Discussion / limitations は Abstract に不記載
+  (指示どおり contribution のみ)
+- **keywords 確定**: SQL, PostgreSQL, statistical modeling, formula
+  interface, generalized linear models, domain-specific language, closure
+  (候補にあった Bioinformatics は本論文と無関係のため不採用)
+- **render.sh の JSS 用 YAML に abstract 全文と keywords を同期**
+  (JSS PDF の表紙に Abstract / Keywords が正しく出ることを確認。
+  abstract 内の glm() は JSS 側では \code{} 表記)
+
+### Changed Files
+
+- `paper/paper.Rmd`: YAML の abstract 本文化 + keywords 記載(コメント)
+- `paper/render.sh`: JSS 用 YAML の abstract / keywords 同期
+
+### Validation
+
+- `make html` → 成功(abstract 反映確認)
+- `make jss` → 成功(PDF の Keywords 行と abstract を pdftotext で確認)
+- `make clean` → 成功、生成物が git に残らないことを確認
+- abstract 語数 233(200〜250 の範囲内)
+
+### Known Issues
+
+- abstract が paper.Rmd と render.sh の2箇所管理(既知の手動同期点。
+  変更時は両方を更新すること)
+- 残る本文は Conclusion のみ + JSS 定型節(Computational details /
+  Acknowledgments / Replication material)
+
+### Next Step
+
+- Conclusion 章の初稿(本文完成)。その後、図表アセットと JSS 定型節
+
+Commit: `Draft abstract`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: Discussion 章の初稿執筆
 
 ### Summary
