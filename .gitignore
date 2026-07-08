@@ -3,3 +3,13 @@ test/results/
 test/log/
 test/regression.diffs
 test/regression.out
+
+# Manuscript build outputs (regenerate from paper/paper.Rmd)
+paper/paper.html
+paper/paper.pdf
+paper/paper-jss.pdf
+paper/paper_files/
+paper/paper_cache/
+# JSS class assets are taken from rticles at build time, never committed
+paper/journal/*
+!paper/journal/.gitkeep

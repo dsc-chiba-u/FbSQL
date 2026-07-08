@@ -6,6 +6,59 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: JSS 論文プロジェクトの初期化(paper/)
+
+### Summary
+
+- `paper/` を新設し、**fbrglm の paper 構成を踏襲**して論文プロジェクトを初期化
+  (本文は未執筆 — 章立てと TODO コメントのみ)
+- `paper.Rmd`: JSS 慣行の YAML(fbrglm と同形式。開発ビルドは html_document、
+  JSS ビルドは一時コピーに rticles::jss_article を適用する2系統方式)+
+  固定の10章構成(Abstract は YAML 内、Introduction 〜 Conclusion の9セクション)。
+  各章に執筆時の論点を TODO コメントで1〜3行
+- 共著者リストは fbrglm からの引き継ぎを仮定せず TODO 化(筆頭著者のみ記載)
+- `references.bib`: シード9件(Codd 1970 / Chambers & Hastie 1992 / MADlib PVLDB
+  2012 / MLlib JMLR 2016 / R Core / PostgresML / Hivemall / H2O / PL/R)。
+  投稿前の全フィールド検証を TODO 明記
+- `render.sh` + `Makefile`: html / pdf(weasyprint)/ jss の3ターゲット。
+  ビルド環境は fbsql-dev イメージとは別(rmarkdown/pandoc/LaTeX が必要)で、
+  執筆本格化時に固定する方針を README に明記
+- **experiments との役割分担を paper/README.md に明文化**: paper/ は原稿管理のみ、
+  図表・CSV・実験結果の生成は FbSQL-experiments が担当し、paper/ は成果物を
+  引用するだけ(実験コードを持たない)
+- 図表アセット計画(tables/related_work.tex, tables/running_example.tex,
+  figures/system_overview.pdf, figures/running_example.pdf)を README の表で整理
+  (実体は未作成)
+- `.gitignore` に原稿ビルド生成物と journal/ 資産(rticles からビルド時取得、
+  非コミット)を追加
+
+### Changed Files
+
+- `paper/paper.Rmd` / `references.bib` / `render.sh` / `Makefile` / `README.md`: 新規
+- `paper/figures/` / `tables/` / `journal/`: .gitkeep で予約
+- `.gitignore`: 原稿ビルド出力の除外
+
+### Validation
+
+- 文書・骨組みのみの変更(Extension コード無変更)。paper.Rmd の YAML は
+  fbrglm-jss-draft.Rmd の形式を目視で照合。レンダリングは環境未固定のため未実行
+  (「まだ完全に動かなくてよい」の方針通り、要件を README に記録)
+
+### Known Issues
+
+- 論文ビルド環境(rmarkdown + pandoc + weasyprint + rticles + LaTeX)は未固定
+- 共著者・keywords・maintainer 連絡先など投稿メタデータに未確定項目あり(TODO)
+
+### Next Step
+
+- 論文ビルド環境の固定(専用 Dockerfile)と `make html` の初回成功確認、
+  その後 Design Principles 章から本文執筆を開始(CLAUDE.md の構成案に沿う)
+
+Commit: `Initialize JSS paper project`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: PGXN 公開準備の最小整備(META.json / Changes)
 
 ### Summary

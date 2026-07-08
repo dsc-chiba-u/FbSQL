@@ -1,0 +1,105 @@
+---
+## ---- JSS submission metadata --------------------------------------
+## Structured in JSS conventions, following ../../fbrglm/paper/. The
+## active build target is `html_document` (development build); the JSS
+## submission build (rticles::jss_article) operates on a temporary copy
+## via paper/render.sh and reuses this metadata.
+## --------------------------------------------------------------------
+
+title: "FbSQL: A Closure-Preserving Formula-based Extension for Statistical Modeling in SQL"
+## For rticles::jss_article, replace the line above with the structured
+## form below:
+## title:
+##   formatted: "FbSQL: A Closure-Preserving Formula-based Extension for Statistical Modeling in SQL"
+##   plain:     "FbSQL: A Closure-Preserving Formula-based Extension for Statistical Modeling in SQL"
+##   short:     "FbSQL: Formula-based Statistical Modeling in SQL"
+
+author:
+  - name: "Koki Tsuyuzaki"
+    affiliation: "Chiba University`\\\\`{=latex} and RIKEN"
+    affiliation2: "Data Science Core, Chiba University`\\\\`{=latex} Chiba, Japan`\\\\[6pt]`{=latex} Omics AI Research Team, Advanced General Intelligence for Science Program (AGIS), RIKEN TRIP Headquarters`\\\\`{=latex} Wako, Japan"
+    address: "`%`{=latex}"
+    email: "koki.tsuyuzaki@gmail.com"
+## TODO: confirm the coauthor list for FbSQL (do not assume the fbrglm
+## author list carries over).
+
+abstract: >
+  TODO: abstract. One paragraph: the problem (SQL-ML systems trade away
+  SQL design principles), the proposal (FbSQL: a closure-preserving,
+  formula-based DSL; glm as proof of concept), the evidence (R-parity
+  PoC on PostgreSQL; design comparison with MADlib / PostgresML / Spark
+  MLlib / Hivemall / H2O), and the claim (language design, not a faster
+  glm).
+
+## keywords TODO: e.g. SQL, PostgreSQL, generalized linear models,
+## formula interface, closure, relational model, PL/R
+
+output:
+  html_document:
+    toc: true
+    number_sections: true
+bibliography: references.bib
+---
+
+# Introduction
+
+<!-- TODO (1-3 lines when writing): motivate "statistical modeling written
+     SQL-like"; existing SQL-ML trades away SQL design principles via model
+     objects / procedural interfaces; contributions list (language design,
+     relation design, PoC extension). -->
+
+# Related Work
+
+<!-- TODO: review MADlib, PostgresML, Spark MLlib (RFormula), Hivemall,
+     H2O-3 + Sparkling Water against the five design principles, using
+     FbSQL-experiments/results/tables/related_work.md as the source table;
+     BigQuery ML mentioned only as a non-OSS example. -->
+
+# Design Principles
+
+<!-- TODO: the five SQL design principles (set-oriented, declarative,
+     closure, order independence, NULL semantics) and how each maps to a
+     concrete FbSQL specification decision. -->
+
+# FbSQL Language Design
+
+<!-- TODO: fit_xxx / predict_xxx signatures; R formula as the model
+     specification; named arguments; the Minimum Atomic Relation question;
+     the repeated model-level column trade-off; the metadata jsonb column
+     and its meta_version-ed schema. -->
+
+# PostgreSQL Extension Implementation
+
+<!-- TODO: PL/R for fit (stats::glm as internal engine, never exposed);
+     predict in PL/pgSQL without R as evidence the relation is a complete
+     model representation; error-handling design (incl. the SPI-abort
+     lesson); pg_regress + R-parity testing discipline. -->
+
+# Running Example
+
+<!-- TODO: the customer churn walk-through (fit on 2025, predict 2026),
+     including NULL rows and the on_new_levels policy for unseen factor
+     levels; taken verbatim from test/sql/running_example.sql. -->
+
+# Experimental Evaluation
+
+<!-- TODO: design comparison built from FbSQL-experiments (running example
+     reproduced on MADlib / PostgresML / Spark MLlib; numeric parity where
+     the estimator allows it; safety differences: silent reference-level
+     scoring, hard NULL errors, dropped rows, non-R RFormula semantics). -->
+
+# Discussion
+
+<!-- TODO: trade-offs (denormalized model-level columns, jsonb metadata,
+     SETOF record column definition lists); generalization to tree
+     ensembles (fit_rf / fit_lgbm / fit_xgb atomic relations); C
+     implementation outlook; named arguments and the SQL standard;
+     deliberate exclusions (weights/offset). -->
+
+# Conclusion
+
+<!-- TODO: restate the claim: a statistical modeling language faithful to
+     SQL design principles, with glm as the first proof of concept. -->
+
+<!-- Computational details / Acknowledgments / Replication material
+     sections to be added in JSS style at writing time. -->
