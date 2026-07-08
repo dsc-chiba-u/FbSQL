@@ -6,6 +6,56 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: Docker image 公開準備(GHCR + Docker Hub)
+
+### Summary
+
+- **Docker image の公開体制を整備**(fbrglm の build_test_push.yml の型を
+  踏襲しつつ、PR では publish しない・テストを publish のゲートにする形に
+  改良)
+- `docker/Dockerfile`: **extension をイメージに焼き込み**(COPY Makefile /
+  fbsql.control / sql → `make -C /opt/fbsql install`)。公開イメージを
+  pull しただけで `CREATE EXTENSION fbsql` が動く。開発フロー(checkout を
+  mount して make install)は上書きになるだけで無影響
+- `.github/workflows/docker-build.yml` を拡張: build → installcheck →
+  **焼き込みスモーク(mount なしで CREATE EXTENSION fbsql CASCADE +
+  fbsql.version())** → main / tag push 時のみ GHCR(GITHUB_TOKEN)と
+  Docker Hub(secrets: DOCKER_USERNAME / DOCKER_PASS)へ push。
+  タグは `latest` + short SHA、tag push 時は version タグも。
+  `workflow_dispatch` で手動実行可
+- README Installation の Recommended (Docker) を **pull ファースト**に更新:
+  `docker pull ghcr.io/dsc-chiba-u/fbsql:latest` + Docker Hub 併記
+  (namespace は fbrglm の `koki/fbrglm` から `koki` と仮置き、TODO
+  コメントで初回 publish 後の確認を明記)。mount + make install の手順は
+  不要になったため run + CREATE EXTENSION に簡素化し、ローカルビルドは
+  fallback として維持。Development 節の「published image が dev 環境を
+  兼ねる」文言も同期
+- 検証: workflow YAML 構文(python yaml)、ローカル再ビルド、
+  **焼き込みイメージのスモーク成功**、`docker-installcheck.sh` 全11テスト
+  green。push 後に Actions の publish 実行と GHCR pull を確認(下記)
+
+### Changed Files
+
+- `docker/Dockerfile`: extension 焼き込み
+- `.github/workflows/docker-build.yml`: publish 対応へ拡張
+- `README.md`: Installation を pull ファーストに更新
+
+### Validation
+
+- ローカル: baked image で mount なし CREATE EXTENSION → version() 成功、
+  installcheck 11/11
+- CI / GHCR pull の結果はコミット後に確認し本エントリの下に追記しない
+  (レポートで報告)
+
+### Next Step
+
+- 初回 publish 後: Docker Hub namespace の確定 → README の TODO 解消、
+  GHCR パッケージの public 化確認。その後 PGXN 投稿準備
+
+Commit: `Publish Docker images`(本エントリを含むコミット)。
+
+---
+
 ## 2026-07-08: 査読用 paper-jss.pdf の正式生成(+ ビルド起因の3欠陥修正)
 
 ### Summary

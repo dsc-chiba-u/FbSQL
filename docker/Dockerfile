@@ -17,3 +17,11 @@ RUN apt-get update \
 
 # Install the plr extension into the default database at first startup.
 COPY docker/initdb/10-plr.sql /docker-entrypoint-initdb.d/10-plr.sql
+
+# Bake the fbsql extension into the image so `CREATE EXTENSION fbsql`
+# works out of the box in the published image. The development workflow
+# still mounts the checkout and reinstalls with `make install`, which
+# simply overwrites these files.
+COPY Makefile fbsql.control /opt/fbsql/
+COPY sql /opt/fbsql/sql
+RUN make -C /opt/fbsql install

@@ -1,17 +1,93 @@
 name: docker-build
 
+env:
+  IMAGE_NAME: fbsql
+
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
-  build-and-check:
+  build-check-publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Build development image
         run: docker build -t fbsql-dev -f docker/Dockerfile .
+
       - name: Install extension and run pg_regress
         run: scripts/docker-installcheck.sh
+
+      # The image bakes the extension in; verify CREATE EXTENSION works
+      # without a source mount, since that is what published-image users do.
+      - name: Smoke-test CREATE EXTENSION in the baked image
+        run: |
+          docker run --rm -d --name fbsql-smoke \
+            -e POSTGRES_HOST_AUTH_METHOD=trust fbsql-dev
+          for _ in $(seq 1 60); do
+            docker exec fbsql-smoke psql -U postgres -c "SELECT 1" >/dev/null 2>&1 && break
+            sleep 1
+          done
+          sleep 2
+          docker exec fbsql-smoke psql -U postgres -c "CREATE EXTENSION fbsql CASCADE;"
+          docker exec fbsql-smoke psql -U postgres -c "SELECT fbsql.version();"
+          docker stop fbsql-smoke
+
+      - name: Compute image tags
+        if: github.event_name != 'pull_request'
+        id: vars
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "version=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Login to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push to GHCR
+        if: github.event_name != 'pull_request'
+        run: |
+          GHCR="ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}"
+          docker tag fbsql-dev "$GHCR:latest"
+          docker tag fbsql-dev "$GHCR:${{ steps.vars.outputs.sha_short }}"
+          docker push "$GHCR:latest"
+          docker push "$GHCR:${{ steps.vars.outputs.sha_short }}"
+          if [ -n "${{ steps.vars.outputs.version }}" ]; then
+            docker tag fbsql-dev "$GHCR:${{ steps.vars.outputs.version }}"
+            docker push "$GHCR:${{ steps.vars.outputs.version }}"
+          fi
+
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: Push to Docker Hub
+        if: github.event_name != 'pull_request'
+        run: |
+          HUB="docker.io/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}"
+          docker tag fbsql-dev "$HUB:latest"
+          docker tag fbsql-dev "$HUB:${{ steps.vars.outputs.sha_short }}"
+          docker push "$HUB:latest"
+          docker push "$HUB:${{ steps.vars.outputs.sha_short }}"
+          if [ -n "${{ steps.vars.outputs.version }}" ]; then
+            docker tag fbsql-dev "$HUB:${{ steps.vars.outputs.version }}"
+            docker push "$HUB:${{ steps.vars.outputs.version }}"
+          fi

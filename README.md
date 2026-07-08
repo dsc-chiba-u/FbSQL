@@ -19,31 +19,39 @@ session to write them unqualified.
 
 ### Recommended (Docker)
 
-Docker images will be published through GitHub Container Registry (GHCR).
-Until then, build the development image locally — it bundles everything
-FbSQL needs (PostgreSQL 16, PL/R, and R), so nothing is installed on the
-host:
+The image bundles everything FbSQL needs — PostgreSQL 16, PL/R, R, and the
+extension preinstalled — so nothing is installed on the host:
 
 ```bash
-scripts/docker-build.sh          # build the fbsql-dev image (one-off)
-scripts/docker-installcheck.sh   # install the extension + run the full test suite
+docker pull ghcr.io/dsc-chiba-u/fbsql:latest
+# or, from Docker Hub:
+docker pull koki/fbsql:latest
 ```
 
-The test suite executes the running example below verbatim, so a green
-`docker-installcheck.sh` also reproduces the paper's workflow end to end.
-For an interactive server with the extension installed:
+<!-- TODO: confirm the Docker Hub namespace (assumed `koki`, as in fbrglm)
+     after the first successful publish run. -->
+
+Start a server and create the extension:
 
 ```bash
-docker run --rm -d --name fbsql-dev -p 5432:5432 \
+docker run --rm -d --name fbsql -p 5432:5432 \
     -e POSTGRES_HOST_AUTH_METHOD=trust \
-    -v "$PWD":/workspace -w /workspace fbsql-dev
-docker exec -e PGUSER=postgres fbsql-dev make install
+    ghcr.io/dsc-chiba-u/fbsql:latest
 psql -h localhost -U postgres    # then: CREATE EXTENSION fbsql CASCADE;
 ```
 
 (`trust` authentication is a development-only setting; do not expose this
-container. `scripts/docker-run.sh` starts the same server in the
-foreground without the source mount.)
+container.) Images are published by CI on every push to `main` (tags:
+`latest`, the short commit SHA, and the version on release tags). To build
+the identical image locally instead:
+
+```bash
+scripts/docker-build.sh          # build the fbsql-dev image from this checkout
+scripts/docker-installcheck.sh   # run the full test suite inside it
+```
+
+The test suite executes the running example below verbatim, so a green
+`docker-installcheck.sh` also reproduces the paper's workflow end to end.
 
 ### Alternative (Build from source)
 
@@ -150,9 +158,9 @@ list is attached as in the example above.
 
 ## Development
 
-The same `fbsql-dev` image used for installation above doubles as the
-development environment — there is no separate runtime image yet. The
-environment (PostgreSQL 16 + PL/R + R) is pinned with Docker:
+The published image doubles as the development environment — there is no
+separate runtime image. The environment (PostgreSQL 16 + PL/R + R) is
+pinned with Docker:
 
 ```bash
 scripts/docker-build.sh          # build the dev image
