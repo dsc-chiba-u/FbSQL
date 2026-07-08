@@ -1479,9 +1479,10 @@ and its tables generated from the companion repository's data.
 
 FbSQL is open-source software under the MIT license. The extension, its
 conformance suite, and the Docker development environment are available
-from <https://github.com/dsc-chiba-u/FbSQL>; at the time of writing the
-extension installs from a source checkout via PGXS (`make install`), as
-described in the repository README. A release through PGXN, the PostgreSQL
+from the FbSQL repository on GitHub, whose address is given with the
+replication material above; at the time of writing the extension installs
+from a source checkout via PGXS (`make install`), as described in the
+repository README. A release through PGXN, the PostgreSQL
 Extension Network, is planned; the release metadata (`META.json`) is
 already part of the repository.
 

@@ -6,6 +6,70 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: JSS 投稿前 polish(+ Docker publish の CI 結果確定)
+
+### Summary
+
+**Docker publish の完了確認**(前エントリの続き):
+
+- 初回 CI は Docker Hub ログインで失敗 — **Secret 名は `DOCKER_PASS` では
+  なく `DOCKER_PASSWORD`**(gh secret list で確認、fbrglm と同じ)。修正
+  コミット `5c6b4ba` で **CI 完全成功**
+- 検証: `ghcr.io/dsc-chiba-u/fbsql:latest`(+ short SHA)と
+  `koki/fbsql:latest` を**匿名 pull 成功(両方 public)**、pull した
+  イメージで mount なし CREATE EXTENSION fbsql CASCADE → version() 成功。
+  **Docker Hub namespace は `koki` で確定** → README の TODO 解消
+
+**JSS polish**(本文・図表内容は無変更):
+
+- **Affiliation 完成**: render.sh の JSS 用 YAML に affiliation2 / address
+  (`` `%`{=latex} `` トリック)を追加し、末尾の Affiliation ブロックが
+  fbrglm と同形(3著者 × 複数所属 + E-mail、筆頭 = corresponding)で
+  出力されることを確認(それまでは**空**だった)
+- **references 整理**: h2o の TODO note 解消(accessed 日付に変更)、
+  fbrglm を CRAN 表示の **version 0.0.1 に固定**、bib 冒頭コメント更新。
+  未使用・重複なしは再確認済み(全12キー使用)
+- **URL 整理**: Software availability の裸 URL(Replication material と
+  重複)を文章参照に置換。本文の裸 URL は Replication material の
+  2リポジトリのみに
+- **verbatim の Overfull 解消**: header-includes で verbatim を
+  `\begingroup\small ... \endgroup` 化(最初 `\small` のみで後続段落へ
+  漏れて悪化 — グループ化で修正)。Running Example の出力ブロック由来の
+  34〜76pt Overfull が全て解消
+- 目視確認: 表紙(タイトル・3著者2行所属・Abstract・Keywords・
+  マストヘッド)、Figure 2 ページ(余白・caption・白黒可読)、
+  References、Affiliation ページ。**32ページ**
+
+### 残る Warning(最終)
+
+- Overfull 37: うち 31(10.95pt×23 + 5.47pt×8)は jss.cls のランニング
+  ヘッダ/ページ番号由来(クラス仕様、fbrglm ドラフトと同種)。残り6件は
+  2〜13pt の軽微な行(本文整形が必要なため未修正)
+- Underfull 55(ページ組の badness、外観問題なし)
+- Missing citation / reference: **0**
+- `table.2` duplicate destination ×2(counter 補正の副作用、cosmetic)
+
+### Changed Files
+
+- `paper/render.sh`: affiliation2/address 追加、verbatim \small 化
+- `paper/references.bib`: h2o / fbrglm / 冒頭コメント
+- `paper/paper.Rmd`: Software availability の URL 重複解消のみ
+- `README.md`: Docker Hub namespace TODO 解消(別コミット)
+- `.github/workflows/docker-build.yml`: Secret 名修正(コミット `5c6b4ba`)
+
+### 投稿前に残る TODO
+
+- Zenodo DOI(両リポジトリ)、Acknowledgments の資金源・機関・個人名、
+  keywords 最終確定、PGXN 投稿(公開後 Software availability 更新)
+
+### Next Step
+
+- 更新版 paper-jss.pdf(32ページ)で ChatGPT 最終査読 → 指摘反映
+
+Commit: `Polish JSS manuscript`(本エントリを含むコミット)。
+
+---
+
 ## 2026-07-08: Docker image 公開準備(GHCR + Docker Hub)
 
 ### Summary
