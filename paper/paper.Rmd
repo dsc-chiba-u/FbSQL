@@ -20,8 +20,19 @@ author:
     affiliation2: "Data Science Core, Chiba University`\\\\`{=latex} Chiba, Japan`\\\\[6pt]`{=latex} Omics AI Research Team, Advanced General Intelligence for Science Program (AGIS), RIKEN TRIP Headquarters`\\\\`{=latex} Wako, Japan"
     address: "`%`{=latex}"
     email: "koki.tsuyuzaki@gmail.com"
-## TODO: confirm the coauthor list for FbSQL (do not assume the fbrglm
-## author list carries over).
+  - name: "Kentaro Sakamaki"
+    affiliation: "Juntendo University`\\\\`{=latex} and Chiba University"
+    affiliation2: "Faculty of Health Data Science, Juntendo University`\\\\`{=latex} Tokyo, Japan`\\\\[6pt]`{=latex} Center for Next Generation of Community Health, Chiba University`\\\\`{=latex} Chiba, Japan"
+    address: "`%`{=latex}"
+    email: "kentaro.sakamaki@gmail.com"
+  - name: "Hiromu Nishiuchi"
+    affiliation: "Chiba University`\\\\`{=latex} and Chuo University"
+    affiliation2: "Data Science Core, Chiba University`\\\\`{=latex} Chiba, Japan`\\\\[6pt]`{=latex} Graduate School of Science and Engineering, Chuo University`\\\\`{=latex} Tokyo, Japan"
+    address: "`%`{=latex}"
+    email: "hiromunishiuchi@gmail.com"
+## Author list, order, affiliations, and corresponding author (first
+## author, as in fbrglm) follow the fbrglm JSS draft
+## (../../fbrglm/paper/fbrglm-jss-draft.Rmd).
 
 abstract: >
   TODO: abstract. One paragraph: the problem (SQL-ML systems trade away
