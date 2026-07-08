@@ -749,10 +749,154 @@ that the language, not the estimator, is the fixed part of FbSQL.
 
 # PostgreSQL Extension Implementation
 
-<!-- TODO: PL/R for fit (stats::glm as internal engine, never exposed);
-     predict in PL/pgSQL without R as evidence the relation is a complete
-     model representation; error-handling design (incl. the SPI-abort
-     lesson); pg_regress + R-parity testing discipline. -->
+This section describes the reference implementation of FbSQL — not how the
+code works line by line, but which implementation decisions were made and
+why. The guiding theme is that every decision below is *replaceable*: the
+language of the previous sections is the fixed part, and the
+implementation exists to demonstrate that the specification can be met.
+
+## Reference implementation
+
+FbSQL is implemented as an ordinary PostgreSQL extension: it installs with
+`CREATE EXTENSION`, places its two functions in a dedicated schema, and
+uses no mechanism outside PostgreSQL's standard extension infrastructure.
+Inside the extension, `fit_glm()` is written in PL/R [@plr], the procedural
+language that embeds an R interpreter in the database server, and delegates
+the actual estimation to R's `stats::glm()` [@rcore].
+
+The reason is conformance, not novelty. The *Language Design* section fixed
+FbSQL's formula and fitting semantics by reference to R's `glm()`; an
+implementation that runs `glm()` itself therefore satisfies those semantics
+by construction, and the engineering effort concentrates where the
+contribution lies — the relation representation — rather than on
+reimplementing iteratively reweighted least squares. We emphasize what this
+choice does *not* mean. Embedding R in PostgreSQL is not new — PL/R has
+been available for two decades — and FbSQL claims no contribution there.
+Nor is PL/R part of the language: no R value, object, or error surface
+reaches the user, whose API is SQL alone, and the next subsection makes the
+independence explicit. PL/R is simply the fastest honest route to a
+reference implementation whose numbers are correct by construction. (One
+operational consequence is worth recording: PL/R is an untrusted language,
+so installing the extension requires superuser privileges, with execution
+then granted to regular users.)
+
+## Separation of language and execution engine
+
+The implementation is organized around a strict separation between the
+*language specification* and the *execution engine*. The specification
+comprises everything the previous sections defined: the function
+signatures and named-argument call style, the formula semantics fixed to
+R's `glm()`, the seventeen-column model relation, the versioned metadata
+schema, the NULL and unseen-level policies, and the error behavior. The
+engine is whatever machinery produces and consumes relations with exactly
+those properties — currently an embedded R interpreter behind `fit_glm()`
+and plain PL/pgSQL behind `predict_glm()`.
+
+<!-- TODO(Figure 3, figures/implementation_layers.pdf, drawn for the
+     paper): layered concept diagram — Language Specification (signatures,
+     formula semantics, 17-column model relation, metadata schema) on top;
+     PostgreSQL Extension as the delivery vehicle; PL/R as the embedded
+     glue; R glm() as the current estimation engine; the model Relation as
+     the output. Annotate the lower layers as replaceable (C, GPU, MADlib
+     backend, distributed engines) with the top layer invariant. -->
+
+Figure 3 sketches the layering. The property that makes the separation
+real, rather than aspirational, is that the interface between the layers
+is *data*: the model relation and its metadata column carry everything
+that crosses the boundary, so nothing about the engine leaks into the
+language. The estimation behind `fit_glm()` could be replaced by a C
+implementation of IRLS, a GPU solver, a call into MADlib's existing
+distributed estimators, or a remote engine, and no user query — none of
+the SQL in the *Running Example* section — would change. Conformance of
+any such replacement is checkable, not arguable: it must produce the same
+relation, and the verification suite described below tests exactly that.
+This is also why the reference implementation's use of R is not a
+dependency of the design: it is the first engine, not the engine.
+
+## Fitting: generating the model relation
+
+<!-- Heading deliberately avoids the literal function name: jss.cls writes
+     raw section titles into PDF bookmark anchors (jss.cls \pdfbookmark),
+     so an escaped underscore in a heading breaks the pdflatex build. -->
+
+`fit_glm()` is a PL/R function that turns one relation into another. It
+executes the caller's `relation` query through the server-side query
+interface, assembles the result as an R data frame, applies the documented
+type conventions deterministically (character columns are converted to
+factors explicitly, with sorted levels and treatment contrasts, rather than
+left to R's implicit coercions), fits the model with `stats::glm()`, and
+then flattens the fitted object into the seventeen-column relation of the
+*Language Design* section — coefficient rows from the summary, Wald
+confidence bounds (chosen over profile-likelihood intervals for
+determinism and cost; the choice is documented as part of the
+specification), the complete-case counters, and the model-level measures.
+The `metadata` column is built inside the same function from the fitted
+object's term, level, and contrast information. Nothing of R survives the
+call: the model object is garbage-collected when the function returns, and
+the relation is the only artifact. In the terms of this paper, `fit_glm()`
+is best read not as "calling R from SQL" but as *generating a relation*
+that happens to use R as its oracle.
+
+## Prediction without R
+
+`predict_glm()` contains no R at all. It is implemented in PL/pgSQL,
+PostgreSQL's native procedural SQL dialect, and computes predictions
+purely from the two relations it receives: it matches coefficient rows to
+terms by name, validates them against the metadata's canonical term set,
+rebuilds the treatment-contrast columns for factors from the stored
+levels, evaluates the linear predictor as a SQL expression over the
+scoring relation, and applies the inverse link. This is an implementation
+decision with a rhetorical point. If the model relation were not a
+complete representation of the fitted model, a second implementation in a
+different language, consuming only the public relation, could not
+reproduce R's predictions — yet it does, to four decimals, across every
+test in the suite. The R-free predictor is thus an existence proof of the
+*Language Design* section's central claim: the relation, not any hidden
+engine state, is the model. It also prefigures the replacement path of the
+previous subsection — prediction has already crossed the engine boundary
+once.
+
+One error-handling decision deserves a paragraph, because it encodes a
+lesson about embedding interpreters in database servers. FbSQL validates
+its own preconditions eagerly and raises prefixed, explicit errors for a
+bad family, an unparsable formula, a missing column, or an empty relation.
+But the execution of the caller's `relation` SQL is deliberately *not*
+wrapped in R-level error handling. When a query fails inside the server's
+query interface, PostgreSQL aborts the surrounding transaction; during
+development, catching that failure in R and raising a friendlier error
+from the handler crashed the backend, because the R-level error machinery
+ran on top of an already-aborted transaction state. The reference
+implementation therefore lets native PostgreSQL errors propagate
+unchanged. The general lesson: an embedded interpreter must defer to the
+host's transaction semantics, and defensive wrapping at the boundary can
+be worse than none.
+
+## Verification strategy
+
+The specification is only as credible as its enforcement, so the
+implementation invests in verification rather than features. Four layers
+are in place. First, the extension carries a `pg_regress` regression suite
+— PostgreSQL's own testing harness — whose eleven test files function as
+executable conformance tests of the specification: output columns, factor
+conventions, complete-case accounting, metadata content, NULL propagation,
+unseen-level policies, and every documented error message. Second, *R
+parity*: the same fixtures are defined literally both in the SQL tests and
+in a reference R script, and the expected outputs are locked to
+`stats::glm()` and `predict.glm()` at four-decimal rounding (rounding
+absorbs platform floating-point variation; ordering is pinned to a
+locale-independent collation). The specification's "semantics by reference
+to R" is thereby a tested property, not a stated intention. Third, the
+development environment is pinned with Docker — no standard PostgreSQL
+image ships PL/R, so a purpose-built image fixes the PostgreSQL, PL/R, and
+R versions — which makes the suite's results reproducible rather than
+machine-dependent. Fourth, GitHub Actions runs the full build and
+regression suite on every commit, so conformance is guaranteed
+*continuously*: a change that breaks R parity cannot land silently.
+Finally, the running example of the previous section is itself one of the
+regression tests, executed verbatim by the suite — every number printed in
+this paper's walkthrough is re-verified on every commit, and the same
+workflow is reproduced against the comparison systems in the companion
+repository, as the next section describes.
 
 # Running Example
 

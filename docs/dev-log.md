@@ -6,6 +6,70 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-08: PostgreSQL Extension Implementation 章の初稿執筆
+
+### Summary
+
+- `paper/paper.Rmd` の **Implementation 章のみ**を本文化(コード非掲載、
+  「どう実装したか」でなく「なぜその実装を選んだか」に徹する。冒頭で
+  「以下の決定はすべて replaceable であり、固定部は言語」と宣言)
+- 構成は指示どおり5小節: (7.1) Reference implementation(PL/R 採用理由 =
+  **conformance, not novelty**。仕様が R 参照で定義されているため R を
+  内部エンジンにすれば by construction で適合。PL/R は新規性でなく
+  「最速の誠実な経路」。untrusted language の superuser 要件も記録)、
+  (7.2) **Separation of language and execution engine**(章の中心。
+  仕様 = シグネチャ/formula 意味論/17列/metadata スキーマ/エラー方針、
+  エンジン = それを満たす任意の機構。層間の界面が*データ*であることが
+  分離を実質化する。C / GPU / MADlib バックエンド / 分散エンジンへの
+  置換で SQL は不変、適合性は検証スイートで testable。Figure 3 参照 +
+  TODO コメント)、(7.3) Fitting(「R を呼ぶ」でなく「R を oracle に
+  relation を生成する」と読む。明示的 factor 変換・Wald CI の決定も
+  仕様の一部として記録。R オブジェクトは関数終了で消滅)、
+  (7.4) **Prediction without R**(PL/pgSQL のみ。R なし実装が R の予測を
+  4桁一致で再現できること = model relation の自己完結性の existence
+  proof、と強調。SPI-abort の教訓を1段落: relation SQL の失敗は R 側で
+  ラップせずネイティブエラーを伝播 — 「埋め込みインタプリタはホストの
+  トランザクション意味論に従うべき」)、(7.5) Verification strategy
+  (pg_regress 11本 = 仕様の executable conformance tests / R parity =
+  同一フィクスチャを SQL と R に literal 定義し4桁丸めで固定 / Docker
+  固定環境 / GitHub Actions で毎コミット検証 / running example 自体が
+  回帰テスト = 論文中の全数値が継続的に再検証される)
+- **make jss の障害を1件解消**: jss.cls は見出しテキストを PDF bookmark
+  のアンカー名にそのまま書き込む(`\pdfbookmark[2]{#1}{Subsection...#1}`)
+  ため、見出し `## fit_glm()` の `\_` が `Missing \endcsname` で pdflatex
+  を停止させる。見出しを「Fitting: generating the model relation」
+  「Prediction without R」に変更して回避(本文中の関数名は無変更。
+  Rmd に理由コメントを残置)。**教訓: JSS ビルドでは見出しに `_` を
+  含めない**
+- 文献は既存のみ(plr, rcore)。新規追加なし
+
+### Changed Files
+
+- `paper/paper.Rmd`: Implementation 章の本文化のみ
+
+### Validation
+
+- `make html` → 成功。未解決引用なし
+- `make jss` → 見出し修正後に成功(existence proof 段落の反映を確認)
+- `make clean` → 成功、生成物が git に残らないことを確認
+
+### Known Issues
+
+- 見出しに `_` を含めると jss ビルドが壊れる(jss.cls の制約)。
+  今後の章・改稿でも見出しへの関数名リテラルは避けること
+- Computational details 節(R / PostgreSQL / PL/R のバージョン明記)は
+  JSS 慣行として執筆時に追加予定(現在は本文でバージョン非固定)
+
+### Next Step
+
+- Experimental Evaluation 章の初稿(experiments の実測結果:
+  parity 13/13、MADlib / PostgresML / Spark の再現と設計差の観察)
+
+Commit: `Draft implementation section`(本エントリを含むコミット)。
+push 後の `git status`: clean。
+
+---
+
 ## 2026-07-08: Introduction 章の初稿執筆(+著者情報の反映を記録)
 
 ### Summary
