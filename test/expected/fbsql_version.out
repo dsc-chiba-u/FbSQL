@@ -2,8 +2,8 @@
 CREATE EXTENSION fbsql CASCADE;
 NOTICE:  installing required extension "plr"
 SELECT fbsql.version();
-          version          
----------------------------
- FbSQL development version
+ version 
+---------
+ 0.1.0
 (1 row)
 

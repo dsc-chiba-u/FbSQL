@@ -3,12 +3,13 @@
 
 CREATE SCHEMA IF NOT EXISTS fbsql;
 
--- Placeholder function so the extension skeleton is testable end-to-end.
+-- Extension version as a queryable function (kept in sync with the
+-- version in fbsql.control and META.json).
 CREATE FUNCTION fbsql.version()
 RETURNS text
 LANGUAGE sql
 IMMUTABLE PARALLEL SAFE
-AS $$ SELECT 'FbSQL development version'::text $$;
+AS $$ SELECT '0.1.0'::text $$;
 
 -- Output relation of fit_glm(): one row per design-matrix column, plus
 -- model-level columns repeated on every row. Keeping everything in a single
