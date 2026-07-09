@@ -1,7 +1,7 @@
 Revision history for fbsql
 
-0.1.0 (unreleased)
-      Initial release candidate.
+0.1.0 2026-07-09
+      Initial release.
 
       Extension infrastructure:
       - PostgreSQL extension skeleton: control file (requires plr), PGXS
