@@ -6,6 +6,66 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-09: PGXN 0.1.0 公開準備 — 投稿以外を完了(投稿は認証情報待ち)
+
+### Summary
+
+- **META.json を公式 validator で検証: OK(warning / error ゼロ)**
+  (pgxn/pgxn-tools の validate_pgxn_meta。name / version / abstract /
+  description / maintainer / license / provides / prereqs / resources /
+  tags すべて Meta Spec v1.0.0 準拠)
+- `Changes` のリリース日を確定(0.1.0 2026-07-09)
+- **配布アーカイブ生成**: pgxn-bundle で `fbsql-0.1.0.zip`(git archive
+  ベース)。`.gitattributes` の export-ignore で内部ファイル(CLAUDE.md /
+  paper/ / docs/ / .github/)を配布物から除外 — **46ファイル・約93KB** の
+  クリーンな配布物。zip は .gitignore に追加(再生成可能)
+- **新規環境での実インストール検証(公開イメージとは別)**: 素の
+  postgres:16-bookworm に apt で plr / R / server-dev / make /
+  pgxnclient を導入 → **`pgxn install fbsql-0.1.0.zip` 成功** →
+  `CREATE EXTENSION fbsql CASCADE`(plr 自動解決)→ pg_extension で
+  plr 8.4.8.6 / fbsql 0.1.0 → `SELECT fbsql.version()` → **README の
+  Running Example を完走(0.0406 / 0.9794 / 0.4280 / NULL — parity 値と
+  一致)**
+- **PGXN への実投稿は未実施(ブロック)**: PGXN_USERNAME / PGXN_PASSWORD
+  が環境・gh secrets のどこにも無い。投稿コマンドは準備済み:
+  `docker run --rm -e PGXN_USERNAME -e PGXN_PASSWORD -v "$PWD":/repo -w
+  /repo pgxn/pgxn-tools pgxn-release fbsql-0.1.0.zip`。
+  **投稿前の本人確認事項**: (1) maintainer メール(hotmail 仮置きのまま)、
+  (2) manager.pgxn.org アカウントの有無
+- README は「公開後に更新」の指示のため**未更新**(Future (PGXN) のまま —
+  未公開なので正しい状態)。論文 Software availability も不変更で
+  TODO コメントのみ追加(指示どおり)
+- 発見事項: `fbsql.version()` が 'FbSQL development version' を返す —
+  0.1.0 リリース前に '0.1.0' へ変更すべきだが SQL 実装変更は本タスク
+  禁止のため**投稿前 TODO として記録**
+- GitHub Release(v0.1.0 タグ)は実投稿と同時に作成予定(タグ push で
+  Docker の version タグも発行される)
+
+### Changed Files
+
+- `Changes`: リリース日確定(コミット `42aa512`)
+- `.gitattributes`: 新規、配布物の絞り込み(コミット `4e77c86`)
+- `.gitignore`: 配布 zip を除外
+- `paper/paper.Rmd`: Software availability に release-sync TODO コメント
+- `docs/dev-log.md`: 本エントリ
+
+### 投稿手順(認証情報が用意でき次第)
+
+1. maintainer メールを確認し、必要なら META.json 修正
+2. `fbsql.version()` を '0.1.0' に(SQL 1行 + expected 更新)
+3. `pgxn-release fbsql-0.1.0.zip`(要再バンドル if 1-2 で変更)
+4. `git tag v0.1.0 && git push origin v0.1.0` + GitHub Release
+5. README を Docker → PGXN → source の順へ更新、論文 TODO 回収
+
+### Next Step
+
+- ユーザーから PGXN 認証情報(または投稿の実行)と maintainer メールの
+  確認を得る
+
+Commit: `Prepare PGXN 0.1.0 release`(本エントリを含むコミット)。
+
+---
+
 ## 2026-07-09: Docker 公開の仕上げ(multi-platform + README 動作確認手順)
 
 ### Summary

@@ -13,3 +13,6 @@ paper/paper_cache/
 # JSS class assets are taken from rticles at build time, never committed
 paper/journal/*
 !paper/journal/.gitkeep
+
+# PGXN distribution archives (regenerate with pgxn-bundle)
+/fbsql-*.zip
