@@ -1,0 +1,32 @@
+name: pgxn-release
+
+# Publish the extension to PGXN. Runs on version tags (v*) or manually via
+# workflow_dispatch. Requires the repository secrets PGXN_USERNAME and
+# PGXN_PASSWORD (a manager.pgxn.org account); credentials never leave
+# GitHub Secrets.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    container: pgxn/pgxn-tools
+    env:
+      PGXN_USERNAME: ${{ secrets.PGXN_USERNAME }}
+      PGXN_PASSWORD: ${{ secrets.PGXN_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate META.json and build the distribution archive
+        run: |
+          validate_pgxn_meta META.json
+          pgxn-bundle
+
+      - name: Release to PGXN
+        run: pgxn-release fbsql-*.zip
