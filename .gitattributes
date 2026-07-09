@@ -1,0 +1,9 @@
+# Keep the PGXN distribution archive (git archive / pgxn-bundle) to the
+# extension itself: code, tests, docs users need. Internal context, the
+# manuscript, and CI plumbing live on GitHub but not in the release zip.
+CLAUDE.md       export-ignore
+paper/          export-ignore
+docs/           export-ignore
+.github/        export-ignore
+.gitignore      export-ignore
+.gitattributes  export-ignore
