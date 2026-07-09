@@ -21,6 +21,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Native amd64 build used as the test gate; the multi-platform
+      # publish below rebuilds from the same Dockerfile.
       - name: Build development image
         run: docker build -t fbsql-dev -f docker/Dockerfile .
 
@@ -46,10 +48,22 @@ jobs:
         if: github.event_name != 'pull_request'
         id: vars
         run: |
-          echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          SHA_SHORT="$(git rev-parse --short HEAD)"
+          GHCR="ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}"
+          HUB="docker.io/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}"
+          TAGS="$GHCR:latest,$GHCR:$SHA_SHORT,$HUB:latest,$HUB:$SHA_SHORT"
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            echo "version=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+            TAGS="$TAGS,$GHCR:$GITHUB_REF_NAME,$HUB:$GITHUB_REF_NAME"
           fi
+          echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        if: github.event_name != 'pull_request'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: github.event_name != 'pull_request'
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request'
@@ -59,19 +73,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push to GHCR
-        if: github.event_name != 'pull_request'
-        run: |
-          GHCR="ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}"
-          docker tag fbsql-dev "$GHCR:latest"
-          docker tag fbsql-dev "$GHCR:${{ steps.vars.outputs.sha_short }}"
-          docker push "$GHCR:latest"
-          docker push "$GHCR:${{ steps.vars.outputs.sha_short }}"
-          if [ -n "${{ steps.vars.outputs.version }}" ]; then
-            docker tag fbsql-dev "$GHCR:${{ steps.vars.outputs.version }}"
-            docker push "$GHCR:${{ steps.vars.outputs.version }}"
-          fi
-
       - name: Login to Docker Hub
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
@@ -79,15 +80,12 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Push to Docker Hub
+      - name: Build and push multi-platform images
         if: github.event_name != 'pull_request'
-        run: |
-          HUB="docker.io/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}"
-          docker tag fbsql-dev "$HUB:latest"
-          docker tag fbsql-dev "$HUB:${{ steps.vars.outputs.sha_short }}"
-          docker push "$HUB:latest"
-          docker push "$HUB:${{ steps.vars.outputs.sha_short }}"
-          if [ -n "${{ steps.vars.outputs.version }}" ]; then
-            docker tag fbsql-dev "$HUB:${{ steps.vars.outputs.version }}"
-            docker push "$HUB:${{ steps.vars.outputs.version }}"
-          fi
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.vars.outputs.tags }}

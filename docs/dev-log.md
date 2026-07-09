@@ -6,6 +6,55 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-09: Docker 公開の仕上げ(multi-platform + README 動作確認手順)
+
+### Summary
+
+- **multi-platform build 対応**: publish 部を buildx ベースに書き換え
+  (`docker/setup-qemu-action@v3` + `setup-buildx-action@v3` +
+  `build-push-action@v6`、`platforms: linux/amd64,linux/arm64`)。
+  背景: Apple Silicon Mac で amd64 イメージの platform mismatch 警告
+  (エミュレーションでは動作確認済みとの報告)。タグ規則は現行維持
+  (latest + short SHA、tag push 時に version。GHCR / Docker Hub の
+  全タグを1つの buildx push で発行)。amd64 のネイティブビルド +
+  installcheck + 焼き込みスモークは従来どおり publish 前のゲートとして
+  維持
+- **README の Docker 節を更新**: `linux/amd64` / `linux/arm64` 対応を
+  明記し、**最小動作確認 SQL ブロックを追加**(CREATE EXTENSION IF NOT
+  EXISTS plr / fbsql → pg_extension 照会 → `SELECT fbsql.version();`)。
+  組み込み `version()` と紛らわしいため「常にスキーマ修飾で書く」注記
+  付き。Docker Hub namespace は実 pull で確認済みの `koki` を維持
+- **表記ゆれ調査**: `fbsql_version` の残存は pg_regress の**テスト名**
+  (Makefile REGRESS / test ファイル名 / dev-log の履歴)のみで、SQL
+  関数表記としての誤用は README・docs にゼロ。テスト名は SQL 実装の
+  一部のため変更しない(禁止事項とも整合)。`SELECT version()` の
+  紛らわしい記述もゼロ
+- `docs/development.md` に Apple Silicon 節を追記(警告の背景と
+  multi-platform 公開後は解消される旨)
+
+### Changed Files
+
+- `.github/workflows/docker-build.yml`: buildx multi-platform publish
+- `README.md`: multi-arch 明記 + 動作確認 SQL
+- `docs/development.md`: Apple Silicon 注記
+
+### Validation
+
+- workflow YAML 構文 OK(python yaml)、ローカル docker build OK
+  (Dockerfile 無変更・キャッシュ命中)。既存テストへの影響なし
+  (SQL・テストは無変更)
+- push 後の Actions 実行と multi-arch manifest はレポートで報告
+  (arm64 は QEMU ビルドのため時間がかかる)
+
+### Next Step
+
+- Actions 成功後: `docker manifest inspect` で amd64/arm64 の両立を確認、
+  Apple Silicon 側での再 pull 確認は利用者へ依頼。その後 PGXN 投稿準備
+
+Commit: `Improve Docker distribution docs`(本エントリを含むコミット)。
+
+---
+
 ## 2026-07-08: 本文圧縮(Shortening Pass)— 32→30ページ
 
 ### Summary

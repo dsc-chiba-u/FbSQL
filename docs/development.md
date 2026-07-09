@@ -76,6 +76,15 @@ make install → make installcheck → 後片付け)を1コマンドで行う。
 `<name>` を追加、初回実行の `test/results/<name>.out` を確認して
 `test/expected/<name>.out` に採用する。
 
+## Apple Silicon(arm64)について
+
+公開イメージは `linux/amd64` と `linux/arm64` のマルチプラットフォームで
+ビルドしている(CI の buildx + QEMU)。arm64 対応前の古いイメージを
+Apple Silicon Mac で起動すると
+`WARNING: The requested image's platform (linux/amd64) does not match ...`
+が出るが、エミュレーションで動作はする。multi-platform 公開後のイメージを
+pull し直せば警告は出ない。
+
 ## 注意点
 
 - **PL/R は untrusted language** であり、`CREATE EXTENSION plr` および PL/R 関数の

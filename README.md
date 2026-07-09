@@ -20,7 +20,8 @@ session to write them unqualified.
 ### Recommended (Docker)
 
 The image bundles everything FbSQL needs — PostgreSQL 16, PL/R, R, and the
-extension preinstalled — so nothing is installed on the host:
+extension preinstalled — so nothing is installed on the host. Images are
+built for `linux/amd64` and `linux/arm64` (Apple Silicon):
 
 ```bash
 docker pull ghcr.io/dsc-chiba-u/fbsql:latest
@@ -28,13 +29,27 @@ docker pull ghcr.io/dsc-chiba-u/fbsql:latest
 docker pull koki/fbsql:latest
 ```
 
-Start a server and create the extension:
+Start a server:
 
 ```bash
 docker run --rm -d --name fbsql -p 5432:5432 \
     -e POSTGRES_HOST_AUTH_METHOD=trust \
     ghcr.io/dsc-chiba-u/fbsql:latest
-psql -h localhost -U postgres    # then: CREATE EXTENSION fbsql CASCADE;
+psql -h localhost -U postgres
+```
+
+Then verify the installation (note the schema qualification —
+`fbsql.version()`, not PostgreSQL's built-in `version()`):
+
+```sql
+CREATE EXTENSION IF NOT EXISTS plr;
+CREATE EXTENSION IF NOT EXISTS fbsql;
+
+SELECT extname, extversion
+FROM pg_extension
+WHERE extname IN ('plr', 'fbsql');
+
+SELECT fbsql.version();
 ```
 
 (`trust` authentication is a development-only setting; do not expose this
