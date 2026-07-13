@@ -6,6 +6,53 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-13: 0.1.0 リリース作業の確定分 + PGXN 保留の決定
+
+### Summary
+
+- **`fbsql.version()` を正式版へ修正**: 'FbSQL development version' →
+  **'0.1.0'**(control / META.json と同期する旨のコメント付き)。
+  pg_regress expected は手書きせず実行結果から採録(psql の末尾空白まで
+  厳密一致のため)。**installcheck 11/11 green**。
+  `grep -R "FbSQL development version"` の残存は dev-log の履歴記述のみ
+- **META.json の maintainer メールを変更**: hotmail 仮置き →
+  `koki.tsuyuzaki@gmail.com`。理由: 論文の corresponding author メールと
+  統一(指示)。PGXN アカウントのメール紐付けは未確認のため、投稿時に
+  差し戻しが必要になる可能性は残る
+- **配布物再生成 + validator 再実行**: `fbsql-0.1.0.zip`(43KB)、
+  validate_pgxn_meta **OK(warning / error ゼロ)**
+- **PGXN 投稿用 workflow を新設**(`.github/workflows/pgxn-release.yml`):
+  v* タグ push / workflow_dispatch で validate → bundle → pgxn-release。
+  認証情報は GitHub Secrets(PGXN_USERNAME / PGXN_PASSWORD)のみ参照
+  (チャット・ファイル・ローカル環境に置かない)
+- **PGXN 投稿はユーザー判断で保留**。それに伴い、投稿とセットの
+  v0.1.0 タグ / GitHub Release / README・論文の「公開済み」同期も保留
+  (未公開の現状では現行記述が正しい)
+- リリース再開時の手順: Secrets 設定 → `git tag v0.1.0 && git push origin
+  v0.1.0`(pgxn-release + Docker v0.1.0 タグが自動)→ GitHub Release 作成
+  → README(Docker → PGXN → source)と論文 Software availability の同期
+  → Zenodo DOI
+
+### Changed Files
+
+- `sql/fbsql--0.1.0.sql` / `test/expected/fbsql_version.out` /
+  `META.json`(コミット `4f19285` "Release FbSQL 0.1.0")
+- `.github/workflows/pgxn-release.yml`(コミット `cbb6119`)
+- `docs/dev-log.md`: 本エントリ
+
+### Validation
+
+- installcheck 11/11、validator OK、配布物の中身確認済み
+
+### Next Step
+
+- **論文は VLDB Journal への転針を検討開始**(共著者フィードバック。
+  `docs/vldb-pivot-plan.md` 参照)。PGXN はユーザーの再開指示待ち
+
+Commit: `Record release preparation status`(本エントリを含むコミット)。
+
+---
+
 ## 2026-07-09: PGXN 0.1.0 公開準備 — 投稿以外を完了(投稿は認証情報待ち)
 
 ### Summary
