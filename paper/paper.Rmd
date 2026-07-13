@@ -100,13 +100,10 @@ serving models inside the operational database. These are legitimate and
 different design objectives, and the systems serve them well; nothing in
 this paper argues otherwise.
 
-What has received far less attention is the *language* question. SQL is not
-merely an invocation surface; it is a language with a coherent design
-inherited from the relational model [@codd1970relational]: operations are
-set-oriented, specifications are declarative, every operator consumes and
-produces relations, results do not depend on row or argument order, and
-NULL has defined semantics. When statistical modeling enters this language,
-a series of design questions follows. How should a statistical model be
+What has received far less attention is the *language* question. SQL is
+not merely an invocation surface; it is a language with the coherent
+design sketched above, and when statistical modeling enters it, a series
+of design questions follows. How should a statistical model be
 *specified* — is there a place in SQL for something like the formula
 notation that has served statistical practice for three decades
 [@chambers1992statistical]? What should a fitting function consume and,
@@ -519,7 +516,7 @@ in ordinary SQL before the model ever sees the data, and anything SQL can
 express can be trained on. `formula` carries the statistical specification
 in the notation of Chambers and Hastie [@chambers1992statistical]. We
 adopt it rather than invent
-a new syntax for three reasons: it has carried three decades of
+a new syntax for three reasons: it has carried decades of
 statistical-modeling practice, it is compact and declarative — it names a
 relationship, not a procedure — and it comes with precise, widely
 understood semantics. FbSQL fixes those semantics to be exactly those of
@@ -1081,10 +1078,11 @@ repository, as the next section describes.
 For a language-design proposal, evaluation does not mean speed, and this
 section reports no performance benchmark — computational performance is
 explicitly outside FbSQL's claims. The evaluation instead answers three
-questions. Does the reference implementation conform to its specification?
-Does the proof of concept work end to end? And when the same statistical
-task is expressed on existing systems, what does each system's design
-require of the user? All materials — scripts, pinned Docker environments,
+questions and then bounds one number. Does the reference implementation
+conform to its specification? Does the proof of concept work end to end?
+When the same statistical task is expressed on existing systems, what
+does each system's design require of the user? And what does the language
+layer itself cost? All materials — scripts, pinned Docker environments,
 raw outputs, and summary tables — live in the companion repository
 `FbSQL-experiments`, with results committed so that changes surface as
 diffs; this section reports what was observed and defers interpretation to
@@ -1230,10 +1228,12 @@ which the fitted model itself was a queryable relation, and the behaviors
 observed around the edges of the workflow — silent reference-level
 scoring, hard NULL errors, silently dropped rows, reparameterized
 coefficient tables — each trace back to where a system keeps its model
-and how the user must describe it. What these observations imply for the
-trade-offs FbSQL accepted — the denormalized model relation, the JSONB
-metadata, the column definition list — is the subject of the next
-section.
+and how the user must describe it. The overhead measurement adds a bound
+rather than an observation: the language layer costs a fraction of a
+second at the scales the proof of concept targets. What these findings
+imply for the trade-offs FbSQL accepted — the denormalized model
+relation, the JSONB metadata, the column definition list — is the subject
+of the next section.
 
 # Discussion
 

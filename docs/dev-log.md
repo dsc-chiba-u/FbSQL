@@ -6,6 +6,51 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-13: Phase 7 — 転針後の全体一貫性レビューと投稿候補版の確定
+
+### Summary
+
+- 転針後の paper.Rmd を全読し、**発見4件をすべて修正**:
+  1. Intro ¶3 が新しい ¶1(SQL の設計コミットメントの列挙)と5性質を
+     二重に列挙 → ¶3 冒頭を「the coherent design sketched above」参照に
+     縮約(codd 重複引用も解消)
+  2. "three decades" の Intro / LD 重複 → LD 側を "decades" に
+  3. Evaluation 導入の「3つの問い」が Overhead 追加後に不整合 →
+     「three questions and then bounds one number」+ 4番目の問いを追記
+  4. Evaluation Summary に overhead の位置づけ(observation ではなく
+     bound)を1文追加
+- **相対参照の総監査**(結合テキスト): previous/next 8箇所すべて正
+  (RE→Impl→Eval の順序と整合)。Intro ロードマップ・Discussion 回収・
+  Figure 1〜4 / Table 1〜3 の番号も確認
+- **最終警告一覧**: Overfull **3件(すべて 5pt 未満)** — JSS 時代の
+  約40件から 2カラム化 + \emergencystretch + コード整形で激減。
+  Missing citation / reference **0**。Underfull 147(2カラムの badness、
+  外観問題なし)
+- References は Springer 番号スタイルで **DOI も印字**されることを確認
+  (p.20 目視)。Table 3 / Declarations / Fig.4 のページも目視確認
+- **投稿候補版 `paper-vldb.pdf`(21ページ / 上限25)を確定** — 共著者
+  レビューに回せる状態
+
+### Changed Files
+
+- `paper/paper.Rmd`: 上記4修正のみ
+
+### Validation
+
+- `make html` / `make vldb` 成功、21ページ。ページ画像で表紙・p.16
+  (Fig.4 + Table 3 + Summary)・p.20(定型節 + References)確認
+
+### 投稿前に残る TODO(共著者確認事項)
+
+- Declarations の確定(Funding / Competing interests / Contributions)
+- ORCID(任意)、Zenodo DOI(投稿時)
+- 最終投稿時: 図ファイル名規約(Fig1.eps 等)への合わせ込み、
+  DOI の「full link」形式が要求される場合の bst 調整
+
+Commit: `Finalize VLDB submission draft`(本エントリを含むコミット)。
+
+---
+
 ## 2026-07-13: VLDB Journal 転針 Phase 0〜6 を一括実施
 
 ### Summary(Phase 別)
