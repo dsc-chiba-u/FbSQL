@@ -1,18 +1,14 @@
 ---
-## ---- JSS submission metadata --------------------------------------
-## Structured in JSS conventions, following ../../fbrglm/paper/. The
-## active build target is `html_document` (development build); the JSS
-## submission build (rticles::jss_article) operates on a temporary copy
-## via paper/render.sh and reuses this metadata.
+## ---- Submission metadata (The VLDB Journal) ------------------------
+## The active build target is `html_document` (development build); the
+## submission build (`make vldb`, Springer svjour3 twocolumn) renders a
+## copy of this file with paper/vldb/vldbj-template.tex. Title and
+## abstract below are the single source for both builds; authors,
+## institutes, and keywords for the submission build live in the
+## template (keep in sync).
 ## --------------------------------------------------------------------
 
 title: "FbSQL: A Closure-Preserving Formula-based Extension for Statistical Modeling in SQL"
-## For rticles::jss_article, replace the line above with the structured
-## form below:
-## title:
-##   formatted: "FbSQL: A Closure-Preserving Formula-based Extension for Statistical Modeling in SQL"
-##   plain:     "FbSQL: A Closure-Preserving Formula-based Extension for Statistical Modeling in SQL"
-##   short:     "FbSQL: Formula-based Statistical Modeling in SQL"
 
 author:
   - name: "Koki Tsuyuzaki"
@@ -31,8 +27,8 @@ author:
     address: "`%`{=latex}"
     email: "hiromunishiuchi@gmail.com"
 ## Author list, order, affiliations, and corresponding author (first
-## author, as in fbrglm) follow the fbrglm JSS draft
-## (../../fbrglm/paper/fbrglm-jss-draft.Rmd).
+## author) follow the fbrglm paper. The submission build takes authors
+## from paper/vldb/vldbj-template.tex — keep both in sync.
 
 abstract: >
   Statistical modeling is increasingly performed inside SQL database
@@ -61,9 +57,10 @@ abstract: >
   both interpretation and prediction — whose answers extend beyond GLMs
   to estimators such as tree ensembles.
 
-## Keywords (used by the JSS build; keep in sync with render.sh):
-## SQL, PostgreSQL, statistical modeling, formula interface, generalized
-## linear models, domain-specific language, closure
+## Keywords (VLDBJ allows 4-6; used by the submission build, maintained
+## in paper/vldb/vldbj-template.tex — keep in sync):
+## SQL, PostgreSQL, statistical modeling, formula interface,
+## domain-specific language, closure
 
 output:
   html_document:
@@ -341,7 +338,8 @@ operational — array expression strings in MADlib, hand-assembled
 `index:value` feature arrays in Hivemall [@hivemall] — leaving encoding,
 interaction columns, and column order as user responsibilities.
 
-FbSQL adopts the formula notation of @chambers1992statistical as its model
+FbSQL adopts the formula notation of Chambers and Hastie
+[@chambers1992statistical] as its model
 specification language: `'churn_flag ~ age + gender'` names a statistical
 relationship, and the system derives everything operational from it —
 factor levels, treatment contrasts, and the construction of the design
@@ -473,7 +471,7 @@ Both functions live in the `fbsql` schema; the examples in this paper
 assume `SET search_path TO fbsql, public;` and write them unqualified.
 Figure 1 gives the overview: every arrow in it is a relation.
 
-```{r fig1, echo=FALSE, out.width="100%", fig.cap="FbSQL system overview. The upper layer is the language: fitting maps a training relation and a formula to a model relation, and prediction maps the model relation and a scoring relation to a prediction relation --- every arrow is a relation. The model relation is the central artifact: queryable, joinable, auditable, and self-contained through its metadata column. The engine below the boundary is replaceable without changing any SQL above it."}
+```{r fig1, echo=FALSE, out.width="100%", fig.env="figure*", fig.cap="FbSQL system overview. The upper layer is the language: fitting maps a training relation and a formula to a model relation, and prediction maps the model relation and a scoring relation to a prediction relation --- every arrow is a relation. The model relation is the central artifact: queryable, joinable, auditable, and self-contained through its metadata column. The engine below the boundary is replaceable without changing any SQL above it."}
 knitr::include_graphics(if (knitr::is_latex_output())
     "figures/figure1_system_overview.pdf" else "figures/figure1_system_overview.svg")
 ```
@@ -495,7 +493,8 @@ it may be any query, the modeling layer introduces no data-access
 sublanguage of its own: filtering, joining, and feature construction happen
 in ordinary SQL before the model ever sees the data, and anything SQL can
 express can be trained on. `formula` carries the statistical specification
-in the notation of @chambers1992statistical. We adopt it rather than invent
+in the notation of Chambers and Hastie [@chambers1992statistical]. We
+adopt it rather than invent
 a new syntax for three reasons: it has carried three decades of
 statistical-modeling practice, it is compact and declarative — it names a
 relationship, not a procedure — and it comes with precise, widely
@@ -525,24 +524,34 @@ The central design decision of FbSQL is what `fit_glm()` returns. It does
 not return a handle to a model; it returns the model itself, as a relation
 of type `fbsql.glm_fit` with seventeen columns at two granularities:
 
-| Column | Grain | Meaning |
-|---|---|---|
-| `term` | term | design matrix column name, as in R's coefficient table |
-| `estimate` | term | coefficient |
-| `std_error` | term | standard error |
-| `statistic` | term | *t* value (gaussian) / *z* value (binomial) |
-| `p_value` | term | *p* value |
-| `conf_low_95`, `conf_high_95` | term | Wald 95% confidence bounds |
-| `family`, `link`, `formula` | model | the specification, echoed back |
-| `n_obs`, `n_used`, `n_dropped` | model | complete-case accounting |
-| `aic`, `deviance`, `null_deviance` | model | model-level fit measures |
-| `metadata` | model | JSONB; everything prediction needs (below) |
-
-<!-- The uncaptioned longtable above still steps LaTeX's table counter;
-     undo that so the numbered tables stay Table 1 (related work) and
-     Table 2 (customer dataset). No-op in HTML output. -->
-```{=latex}
-\addtocounter{table}{-1}
+```{r spec-table, echo=FALSE, results='asis'}
+## The column specification, per output format: markdown's pipe table
+## becomes a longtable in LaTeX, which twocolumn svjour3 cannot host, so
+## the LaTeX build gets a plain non-floating tabular instead.
+spec <- list(
+  c("\\texttt{term}", "term", "design matrix column name, as in R's coefficient table"),
+  c("\\texttt{estimate}", "term", "coefficient"),
+  c("\\texttt{std\\_error}", "term", "standard error"),
+  c("\\texttt{statistic}", "term", "\\emph{t} value (gaussian) / \\emph{z} value (binomial)"),
+  c("\\texttt{p\\_value}", "term", "\\emph{p} value"),
+  c("\\texttt{conf\\_low\\_95}, \\texttt{conf\\_high\\_95}", "term", "Wald 95\\% confidence bounds"),
+  c("\\texttt{family}, \\texttt{link}, \\texttt{formula}", "model", "the specification, echoed back"),
+  c("\\texttt{n\\_obs}, \\texttt{n\\_used}, \\texttt{n\\_dropped}", "model", "complete-case accounting"),
+  c("\\texttt{aic}, \\texttt{deviance}, \\texttt{null\\_deviance}", "model", "model-level fit measures"),
+  c("\\texttt{metadata}", "model", "JSONB; everything prediction needs (below)"))
+if (knitr::is_latex_output()) {
+  cat("\\begin{center}\\footnotesize\n",
+      "\\begin{tabular}{@{}p{2.6cm}p{0.8cm}p{4.2cm}@{}}\n\\toprule\n",
+      "Column & Grain & Meaning \\\\\n\\midrule\n", sep = "")
+  for (r in spec) cat(paste(r, collapse = " & "), "\\\\\n", sep = "")
+  cat("\\bottomrule\n\\end{tabular}\n\\end{center}\n")
+} else {
+  md <- gsub("\\\\([_%])", "\\1", vapply(spec, function(r)
+      paste0("| ", gsub("\\\\texttt\\{([^}]*)\\}", "`\\1`",
+             gsub("\\\\emph\\{([^}]*)\\}", "*\\1*", paste(r, collapse = " | "))), " |"),
+      character(1)))
+  cat("| Column | Grain | Meaning |", "|---|---|---|", md, sep = "\n")
+}
 ```
 
 One row corresponds to one design matrix column — `(Intercept)`, each
@@ -554,7 +563,7 @@ vocabulary R users know from model-tidying conventions (`term`,
 identifiers, so the relation is immediately readable from both sides of
 the language boundary.
 
-```{r fig2, echo=FALSE, out.width="100%", fig.cap="The running example as one relational circuit. The same customer table supplies the 2025 cohort for fitting and the 2026 cohort for scoring, and the fitted churn model passes between the two functions as an ordinary relation --- nothing outside the diagram carries state. The awkward rows of production scoring data (a NULL age, an unseen gender level) are handled inside SQL's own semantics rather than outside the relational world."}
+```{r fig2, echo=FALSE, out.width="100%", fig.env="figure*", fig.cap="The running example as one relational circuit. The same customer table supplies the 2025 cohort for fitting and the 2026 cohort for scoring, and the fitted churn model passes between the two functions as an ordinary relation --- nothing outside the diagram carries state. The awkward rows of production scoring data (a NULL age, an unseen gender level) are handled inside SQL's own semantics rather than outside the relational world."}
 knitr::include_graphics(if (knitr::is_latex_output())
     "figures/figure2_running_example.pdf" else "figures/figure2_running_example.svg")
 ```
@@ -925,7 +934,7 @@ engine is whatever machinery produces and consumes relations with exactly
 those properties — currently an embedded R interpreter behind `fit_glm()`
 and plain PL/pgSQL behind `predict_glm()`.
 
-```{r fig3, echo=FALSE, out.width="100%", fig.cap="The implementation as layers. The language specification is the fixed part; the PostgreSQL extension is one realization of it, with R behind fitting and no R behind prediction, so the model relation is the boundary artifact --- the only thing that crosses between the two engines. The verification layer enforces conformance continuously, which is what makes the engines replaceable in practice and not only in principle."}
+```{r fig3, echo=FALSE, out.width="100%", fig.env="figure*", fig.cap="The implementation as layers. The language specification is the fixed part; the PostgreSQL extension is one realization of it, with R behind fitting and no R behind prediction, so the model relation is the boundary artifact --- the only thing that crosses between the two engines. The verification layer enforces conformance continuously, which is what makes the engines replaceable in practice and not only in principle."}
 knitr::include_graphics(if (knitr::is_latex_output())
     "figures/figure3_implementation_layers.pdf" else "figures/figure3_implementation_layers.svg")
 ```
@@ -945,9 +954,9 @@ dependency of the design: it is the first engine, not the engine.
 
 ## Fitting: generating the model relation
 
-<!-- Heading deliberately avoids the literal function name: jss.cls writes
-     raw section titles into PDF bookmark anchors (jss.cls \pdfbookmark),
-     so an escaped underscore in a heading breaks the pdflatex build. -->
+<!-- Heading avoids the literal function name (a habit from the earlier
+     JSS build, whose class broke on underscores in headings; harmless to
+     keep). -->
 
 `fit_glm()` is a PL/R function that turns one relation into another. It
 executes the caller's `relation` query through the server-side query
@@ -1087,7 +1096,7 @@ subsection reports the design differences the reproduction made
 observable, not the tables' every cell. Figure 4 recalls the three-group
 taxonomy in which the compared systems sit.
 
-```{r fig4, echo=FALSE, out.width="100%", fig.cap="Three ways SQL reaches machine learning, grouped by where the modeling computation lives relative to the SQL language. The groups differ in what the user must leave SQL to do and in where the fitted model resides: relations, side tables, or catalogs inside the database; host-language objects beside the engine's SQL dialect; or an external cluster reached by data conversion. The grouping organizes the comparison; it does not rank the systems."}
+```{r fig4, echo=FALSE, out.width="100%", fig.env="figure*", fig.cap="Three ways SQL reaches machine learning, grouped by where the modeling computation lives relative to the SQL language. The groups differ in what the user must leave SQL to do and in where the fitted model resides: relations, side tables, or catalogs inside the database; host-language objects beside the engine's SQL dialect; or an external cluster reached by data conversion. The grouping organizes the comparison; it does not rank the systems."}
 knitr::include_graphics(if (knitr::is_latex_output())
     "figures/figure4_system_taxonomy.pdf" else "figures/figure4_system_taxonomy.svg")
 ```

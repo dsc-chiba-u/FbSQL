@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
-# Render the manuscript. Mirrors the fbrglm two-pipeline setup:
+# Render the manuscript:
 #   ./render.sh html   development build (html_document)
 #   ./render.sh pdf    development build (html -> PDF via weasyprint)
-#   ./render.sh jss    submission build (rticles::jss_article + pdflatex)
+#   ./render.sh vldb   submission build (Springer svjour3 twocolumn,
+#                      The VLDB Journal; numbered references, spmpsci)
 #
-# Requirements (not provided by the fbsql-dev image, which is runtime-only):
-#   html/pdf : R + rmarkdown + pandoc (+ weasyprint for pdf)
-#   jss      : additionally rticles + a LaTeX distribution (pdflatex);
-#              jss.cls / jss.bst / jsslogo.jpg are copied into a temporary
-#              build directory from the rticles installation, so nothing
-#              journal-owned is committed here.
-# TODO: pin a paper-build environment (dedicated Dockerfile or renv) once
-# writing starts in earnest.
+# The vldb build renders a copy of paper.Rmd in a temporary directory with
+# the pandoc template paper/vldb/vldbj-template.tex. Journal class assets
+# (svjour3.cls, svglov3.clo, spmpsci.bst) are taken from /opt/vldbj inside
+# the fbsql-paper image (downloaded from Springer at image build time) and
+# are never committed. Title and abstract come from paper.Rmd's YAML;
+# authors, institutes, and keywords live in the template.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -25,96 +24,43 @@ case "$TARGET" in
         Rscript -e 'rmarkdown::render("paper.Rmd", output_format = "html_document")'
         weasyprint paper.html paper.pdf
         ;;
-    jss)
-        # Render a temporary copy with the rticles jss_article format so
-        # the source Rmd (whose active output is html_document) stays
-        # untouched, as in fbrglm's render_jss_pdf.R: the YAML header is
-        # swapped for the JSS-structured form and the class assets are
-        # copied in from the rticles skeleton.
+    vldb)
         Rscript - <<'EOF'
-build <- file.path(tempdir(), "fbsql-jss-build")
+build <- file.path(tempdir(), "fbsql-vldb-build")
 dir.create(build, recursive = TRUE, showWarnings = FALSE)
-skel <- system.file("rmarkdown", "templates", "jss", "skeleton",
-                    package = "rticles")
-file.copy(file.path(skel, c("jss.cls", "jss.bst", "jsslogo.jpg")),
-          build, overwrite = TRUE)
+file.copy(list.files("/opt/vldbj", full.names = TRUE), build,
+          overwrite = TRUE)
+file.copy("vldb/vldbj-template.tex", build, overwrite = TRUE)
 file.copy("references.bib", build, overwrite = TRUE)
 file.copy("figures", build, recursive = TRUE)
 file.copy("tables", build, recursive = TRUE)
 
-## Keep the JSS-form metadata below in sync with paper.Rmd's YAML.
-lines <- readLines("paper.Rmd")
-fences <- which(lines == "---")
-body <- lines[(fences[2] + 1L):length(lines)]
-header <- c(
-  "---",
-  "documentclass: jss",
-  "title:",
-  "  formatted: \"FbSQL: A Closure-Preserving Formula-based Extension for Statistical Modeling in SQL\"",
-  "  plain:     \"FbSQL: A Closure-Preserving Formula-based Extension for Statistical Modeling in SQL\"",
-  "  short:     \"FbSQL: Formula-based Statistical Modeling in SQL\"",
-  "author:",
-  "  - name: Koki Tsuyuzaki",
-  "    affiliation: Chiba University`\\\\`{=latex} and RIKEN",
-  "    affiliation2: Data Science Core, Chiba University`\\\\`{=latex} Chiba, Japan`\\\\[6pt]`{=latex} Omics AI Research Team, Advanced General Intelligence for Science Program (AGIS), RIKEN TRIP Headquarters`\\\\`{=latex} Wako, Japan",
-  "    address: \"`%`{=latex}\"",
-  "    email: \\email{koki.tsuyuzaki@gmail.com}",
-  "  - name: Kentaro Sakamaki",
-  "    affiliation: Juntendo University`\\\\`{=latex} and Chiba University",
-  "    affiliation2: Faculty of Health Data Science, Juntendo University`\\\\`{=latex} Tokyo, Japan`\\\\[6pt]`{=latex} Center for Next Generation of Community Health, Chiba University`\\\\`{=latex} Chiba, Japan",
-  "    address: \"`%`{=latex}\"",
-  "    email: \\email{kentaro.sakamaki@gmail.com}",
-  "  - name: Hiromu Nishiuchi",
-  "    affiliation: Chiba University`\\\\`{=latex} and Chuo University",
-  "    affiliation2: Data Science Core, Chiba University`\\\\`{=latex} Chiba, Japan`\\\\[6pt]`{=latex} Graduate School of Science and Engineering, Chuo University`\\\\`{=latex} Tokyo, Japan",
-  "    address: \"`%`{=latex}\"",
-  "    email: \\email{hiromunishiuchi@gmail.com}",
-  "header-includes:",
-  "  - \\usepackage{etoolbox}",
-  "  - \\BeforeBeginEnvironment{verbatim}{\\begingroup\\small}",
-  "  - \\AfterEndEnvironment{verbatim}{\\endgroup}",
-  "abstract: >",
-  "  Statistical modeling is increasingly performed inside SQL database",
-  "  systems, where the data already resides. Existing systems for",
-  "  in-database machine learning concentrate on computation — scalability,",
-  "  algorithm coverage, and deployment — while the question of how",
-  "  statistical modeling should be written *as SQL* has received far less",
-  "  attention. This paper proposes FbSQL (Formula-based SQL), a statistical",
-  "  modeling domain-specific language for SQL; although an open-source",
-  "  PostgreSQL extension serves as its reference implementation, the",
-  "  contribution is the language design. FbSQL treats five principles of",
-  "  SQL — set orientation, declarativeness, closure, order independence,",
-  "  and NULL semantics — as design constraints: models are specified with",
-  "  R's formula notation, fitting and prediction both consume and return",
-  "  relations, and the fitted model is itself a relation carrying",
-  "  coefficient rows, model-level columns, and a queryable metadata column",
-  "  that makes it self-contained, with no model object ever exposed. We",
-  "  demonstrate the design on a customer-churn running example written",
-  "  entirely in SQL and evaluate it in two ways: the reference",
-  "  implementation reproduces R's \\code{glm()} and \\code{predict.glm()} at the tested",
-  "  precision, and reproducible comparisons against Apache MADlib,",
-  "  PostgresML, and Spark MLlib trace the systems' observable behavioral",
-  "  differences to interface and representation choices. Generalized linear",
-  "  models serve as the proof of concept; the design centers on the Minimum",
-  "  Atomic Relation question — what is the smallest relation that supports",
-  "  both interpretation and prediction — whose answers extend beyond GLMs",
-  "  to estimators such as tree ensembles.",
-  "keywords:",
-  "  formatted: [SQL, PostgreSQL, statistical modeling, formula interface, generalized linear models, domain-specific language, closure]",
-  "  plain:     [SQL, PostgreSQL, statistical modeling, formula interface, generalized linear models, domain-specific language, closure]",
-  "bibliography: references.bib",
-  "---")
-writeLines(c(header, body), file.path(build, "paper.Rmd"))
+## The related-work table is wider than one column: promote it to table*
+## for the twocolumn layout (build-time only; the generated file in
+## tables/ stays single-source in FbSQL-experiments).
+rw <- file.path(build, "tables", "related_work.tex")
+txt <- readLines(rw)
+txt <- gsub("\\begin{table}[t!]", "\\begin{table*}[t!]", txt, fixed = TRUE)
+txt <- gsub("\\end{table}", "\\end{table*}", txt, fixed = TRUE)
+writeLines(txt, rw)
 
+file.copy("paper.Rmd", build, overwrite = TRUE)
 rmarkdown::render(file.path(build, "paper.Rmd"),
-                  output_format = rticles::jss_article(),
-                  output_file = "paper-jss.pdf")
-file.copy(file.path(build, "paper-jss.pdf"), "paper-jss.pdf",
+                  output_format = rmarkdown::pdf_document(
+                      template = file.path(build, "vldbj-template.tex"),
+                      citation_package = "natbib",
+                      latex_engine = "pdflatex",
+                      number_sections = TRUE,
+                      fig_caption = TRUE,
+                      highlight = "tango",
+                      keep_tex = TRUE),
+                  output_file = "paper-vldb.pdf")
+file.copy(file.path(build, "paper-vldb.pdf"), "paper-vldb.pdf",
           overwrite = TRUE)
 EOF
         ;;
     *)
-        echo "usage: $0 [html|pdf|jss]" >&2
+        echo "usage: $0 [html|pdf|vldb]" >&2
         exit 1
         ;;
 esac

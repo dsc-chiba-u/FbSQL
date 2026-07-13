@@ -1,0 +1,76 @@
+% Pandoc template for The VLDB Journal (Springer svjour3, twocolumn).
+% Class assets (svjour3.cls, svglov3.clo, spmpsci.bst) are copied into the
+% build directory from the official LaTeX_VLDBJ_Template at image build
+% time (see paper/Dockerfile); they are journal-owned and not committed.
+%
+% Metadata policy: title and abstract come from paper.Rmd's YAML (single
+% source). Authors / institutes / keywords are maintained here.
+\RequirePackage{fix-cm}
+\documentclass[twocolumn]{svjour3}
+\smartqed
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{textcomp}
+\usepackage{graphicx}
+\usepackage{longtable,booktabs,array,multirow,calc}
+% VLDBJ uses numbered citations in square brackets; spmpsci.bst below.
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage{etoolbox}
+\BeforeBeginEnvironment{verbatim}{\begingroup\footnotesize}
+\AfterEndEnvironment{verbatim}{\endgroup}
+$if(highlighting-macros)$
+$highlighting-macros$
+$endif$
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+% Scale down highlighted code blocks to the column.
+\ifdefined\Shaded
+  \BeforeBeginEnvironment{Shaded}{\begingroup\footnotesize}
+  \AfterEndEnvironment{Shaded}{\endgroup}
+\fi
+\usepackage[hidelinks]{hyperref}
+\journalname{The VLDB Journal}
+\begin{document}
+
+\title{$title$}
+%\titlerunning{FbSQL}
+\author{Koki Tsuyuzaki \and Kentaro Sakamaki \and Hiromu Nishiuchi}
+\authorrunning{K. Tsuyuzaki et al.}
+\institute{K. Tsuyuzaki \at
+              Data Science Core, Chiba University, Chiba, Japan \\
+              Omics AI Research Team, Advanced General Intelligence for
+              Science Program (AGIS), RIKEN TRIP Headquarters, Wako, Japan \\
+              \email{koki.tsuyuzaki@gmail.com}
+           \and
+           K. Sakamaki \at
+              Faculty of Health Data Science, Juntendo University, Tokyo, Japan \\
+              Center for Next Generation of Community Health, Chiba
+              University, Chiba, Japan \\
+              \email{kentaro.sakamaki@gmail.com}
+           \and
+           H. Nishiuchi \at
+              Data Science Core, Chiba University, Chiba, Japan \\
+              Graduate School of Science and Engineering, Chuo University,
+              Tokyo, Japan \\
+              \email{hiromunishiuchi@gmail.com}
+}
+\date{Received: date / Accepted: date}
+
+\maketitle
+
+\begin{abstract}
+$abstract$
+% Keywords: keep in sync with paper.Rmd's keyword comment (4-6 for VLDBJ).
+\keywords{SQL \and PostgreSQL \and Statistical modeling \and
+Formula interface \and Domain-specific language \and Closure}
+\end{abstract}
+
+$body$
+
+\bibliographystyle{spmpsci}
+$if(bibliography)$
+\bibliography{$for(bibliography)$$bibliography$$sep$,$endfor$}
+$endif$
+
+\end{document}

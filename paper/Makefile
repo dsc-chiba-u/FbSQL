@@ -6,7 +6,7 @@ IMAGE ?= fbsql-paper
 RUN := docker run --rm -u $(shell id -u):$(shell id -g) -e HOME=/tmp \
 	-v $(CURDIR):/paper -w /paper $(IMAGE)
 
-.PHONY: image html pdf jss clean
+.PHONY: image html pdf vldb clean
 
 image:
 	docker build -t $(IMAGE) .
@@ -17,8 +17,8 @@ html:
 pdf:
 	$(RUN) ./render.sh pdf
 
-jss:
-	$(RUN) ./render.sh jss
+vldb:
+	$(RUN) ./render.sh vldb
 
 clean:
-	rm -rf paper.html paper.pdf paper-jss.pdf paper_files paper_cache
+	rm -rf paper.html paper.pdf paper-vldb.pdf paper-jss.pdf paper_files paper_cache

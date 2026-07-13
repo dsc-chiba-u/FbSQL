@@ -1,8 +1,10 @@
-# `paper/` — manuscript skeleton
+# `paper/` — manuscript
 
-Target venue: [Journal of Statistical Software](https://www.jstatsoft.org/)
-(JSS), following the structure of the fbrglm JSS draft
-(`../../fbrglm/paper/`).
+Target venue: [The VLDB Journal](https://link.springer.com/journal/778)
+(Springer). Key constraints from the submission guidelines: the official
+two-column LaTeX template (svjour3), a 25-page limit in that format,
+numbered citations, an abstract of 150–250 words, 4–6 keywords,
+single-blind review, and required Declarations sections.
 
 ## Division of labor with FbSQL-experiments
 
@@ -19,16 +21,19 @@ Target venue: [Journal of Statistical Software](https://www.jstatsoft.org/)
 
 ```
 paper/
-  paper.Rmd        # the draft; section skeleton only for now
-  references.bib   # seed entries (verify before submission)
-  render.sh        # html / pdf / jss build pipelines
-  Makefile         # make html | pdf | jss | clean
-  figures/         # imported figure files (from FbSQL-experiments)
-  tables/          # imported table fragments (from FbSQL-experiments)
-  journal/         # JSS class assets if ever needed locally (not committed;
-                   #   the jss build takes them from rticles)
+  paper.Rmd        # the manuscript source
+  references.bib   # bibliography (verify every field before submission)
+  render.sh        # html / pdf / vldb build pipelines
+  Makefile         # make html | pdf | vldb | clean
+  vldb/            # pandoc template for the svjour3 submission build
+  figures/         # figure sources + rendered SVG/PDF (committed)
+  tables/          # generated table fragments (from FbSQL-experiments)
   README.md        # this file
 ```
+
+Journal class assets (svjour3.cls, svglov3.clo, Springer .bst files) are
+downloaded from Springer into the `fbsql-paper` image at build time and
+are never committed.
 
 ## Planned figure / table assets
 
@@ -43,14 +48,16 @@ paper/
 
 ## Build targets
 
-Two pipelines render the same `paper.Rmd` (fbrglm pattern):
+Two pipelines render the same `paper.Rmd`:
 
 - **Development build** — `html_document` (`make html`), optionally to PDF
   via `weasyprint` (`make pdf`). Fast, no LaTeX needed.
-- **JSS submission build** — `rticles::jss_article` + `pdflatex`
-  (`make jss`). Operates on a temporary copy; the source Rmd stays on the
-  html output block. JSS class assets come from the rticles installation
-  and are not committed.
+- **Submission build** — Springer svjour3 twocolumn + `pdflatex`
+  (`make vldb`, output `paper-vldb.pdf`). Renders a copy in a temporary
+  directory with `vldb/vldbj-template.tex`; title and abstract come from
+  `paper.Rmd`'s YAML, authors/institutes/keywords from the template. The
+  wide comparison table is promoted to `table*` at build time for the
+  two-column layout.
 
 **Tables are generated, never hand-edited.** Everything under `tables/` is
 written by `FbSQL-experiments/scripts/51_generate_paper_tables.R` (each
@@ -86,16 +93,16 @@ derived from experimental results belongs to FbSQL-experiments.
 ## Building
 
 The build environment is pinned by `paper/Dockerfile`
-(`rocker/verse:4.4.2` = R + pandoc + rmarkdown + TinyTeX, plus rticles and
-weasyprint). It is deliberately separate from the fbsql-dev runtime image,
-which has none of the publishing toolchain.
+(`rocker/verse:4.4.2` = R + pandoc + rmarkdown + TinyTeX, plus weasyprint
+and the Springer VLDBJ template assets). It is deliberately separate from
+the fbsql-dev runtime image, which has none of the publishing toolchain.
 
 ```bash
 cd paper
 make image   # build the fbsql-paper docker image (once)
 make html    # render paper.Rmd -> paper.html inside the image
 make pdf     # paper.html -> paper.pdf via weasyprint
-make jss     # rticles::jss_article + pdflatex (submission form)
+make vldb    # svjour3 twocolumn + pdflatex (submission form)
 make clean   # remove rendered outputs
 ```
 
@@ -103,5 +110,5 @@ make clean   # remove rendered outputs
 `rmarkdown::render("paper.Rmd", output_format = "html_document")` as your
 own user, and leaves `paper.html` here.
 
-Rendered outputs (`paper.html`, `paper.pdf`, `paper-jss.pdf`, `paper_files/`)
-are gitignored; regenerate them from source.
+Rendered outputs (`paper.html`, `paper.pdf`, `paper-vldb.pdf`,
+`paper_files/`) are gitignored; regenerate them from source.
