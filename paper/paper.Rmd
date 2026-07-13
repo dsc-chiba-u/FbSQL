@@ -32,30 +32,30 @@ author:
 
 abstract: >
   Statistical modeling is increasingly performed inside SQL database
-  systems, where the data already resides. Existing systems for
-  in-database machine learning concentrate on computation — scalability,
-  algorithm coverage, and deployment — while the question of how
-  statistical modeling should be written *as SQL* has received far less
-  attention. This paper proposes FbSQL (Formula-based SQL), a statistical
-  modeling domain-specific language for SQL; although an open-source
-  PostgreSQL extension serves as its reference implementation, the
-  contribution is the language design. FbSQL treats five principles of
-  SQL — set orientation, declarativeness, closure, order independence,
-  and NULL semantics — as design constraints: models are specified with
-  R's formula notation, fitting and prediction both consume and return
-  relations, and the fitted model is itself a relation carrying
-  coefficient rows, model-level columns, and a queryable metadata column
-  that makes it self-contained, with no model object ever exposed. We
-  demonstrate the design on a customer-churn running example written
-  entirely in SQL and evaluate it in two ways: the reference
-  implementation reproduces R's `glm()` and `predict.glm()` at the tested
-  precision, and reproducible comparisons against Apache MADlib,
-  PostgresML, and Spark MLlib trace the systems' observable behavioral
-  differences to interface and representation choices. Generalized linear
-  models serve as the proof of concept; the design centers on the Minimum
-  Atomic Relation question — what is the smallest relation that supports
-  both interpretation and prediction — whose answers extend beyond GLMs
-  to estimators such as tree ensembles.
+  systems, where the data already resides, yet existing in-database
+  machine learning systems concentrate on computation — scalability,
+  algorithm coverage, deployment — and answer a language question only
+  implicitly: what should statistical modeling look like *as SQL*? This
+  paper proposes FbSQL (Formula-based SQL), a statistical modeling
+  domain-specific language that treats SQL's design principles — set
+  orientation, declarativeness, closure, order independence, and NULL
+  semantics — as hard constraints. Its core design question, which we
+  call the *Minimum Atomic Relation* question, asks: for a class of
+  statistical models, what is the smallest relation that supports both
+  the interpretation of a fitted model and the reconstruction of its
+  predictions? For generalized linear models — the proof of concept —
+  the answer is a relation of coefficient rows with model-level columns
+  and a queryable metadata column that makes it self-contained: models
+  are specified with R's formula notation, fitting and prediction consume
+  and return relations, and no model object is ever exposed. Because the
+  model is data, the language is strictly separated from its execution
+  engine — the only thing that crosses the boundary is the model relation
+  itself. The open-source PostgreSQL reference implementation
+  demonstrates this separation by predicting without R while fitting
+  delegates to it, reproducing R's `glm()` and `predict.glm()` at the
+  tested precision, and reproducible comparisons against Apache MADlib,
+  PostgresML, and Spark MLlib trace observable behavioral differences to
+  interface and representation choices.
 
 ## Keywords (VLDBJ allows 4-6; used by the submission build, maintained
 ## in paper/vldb/vldbj-template.tex — keep in sync):
@@ -72,19 +72,24 @@ bibliography: references.bib
 
 # Introduction
 
-Statistical modeling is increasingly performed where the data already
-lives: inside database systems and SQL-centric data platforms. The reasons
-are practical — organizational data accumulates in relational systems,
-export pipelines add cost and governance risk, and the people who know the
-data often work in SQL. A substantial ecosystem has grown in response.
-Apache MADlib brings statistical methods into PostgreSQL and Greenplum as
-SQL-callable functions [@hellerstein2012madlib]; PostgresML packages a
-modern machine learning stack as a PostgreSQL extension [@postgresml];
-Spark MLlib attaches machine learning to an engine whose query language
-includes SQL [@meng2016mllib]; Apache Hivemall embedded training and
-prediction directly into HiveQL [@hivemall]; H2O-3 connects a dedicated
-machine learning cluster to Spark data [@h2o]; and the commercial success
-of managed offerings such as BigQuery ML [@bigqueryml] confirms the demand
+SQL's longevity rests on a small number of design commitments inherited
+from the relational model: operations on whole relations, declarative
+specification, and — above all — closure, the guarantee that every
+operator consumes relations and produces a relation, which is what makes
+queries composable into subqueries, views, and pipelines
+[@codd1970relational]. These commitments have been articulated, defended,
+and fought over for five decades [@date2004introduction; @darwen1995third].
+Meanwhile, statistical modeling has moved to where the data lives. Since
+the in-database analytics movement took shape [@cohen2009madskills], a
+substantial ecosystem has grown: Apache MADlib brings statistical methods
+into PostgreSQL and Greenplum as SQL-callable functions
+[@hellerstein2012madlib]; PostgresML packages a modern machine learning
+stack as a PostgreSQL extension [@postgresml]; Spark MLlib attaches
+machine learning to an engine whose query language includes SQL
+[@meng2016mllib]; Apache Hivemall embedded training and prediction
+directly into HiveQL [@hivemall]; H2O-3 connects a dedicated machine
+learning cluster to Spark data [@h2o]; and the commercial success of
+managed offerings such as BigQuery ML [@bigqueryml] confirms the demand
 from the SQL side.
 
 These systems concentrate, by design, on computation. MADlib and Spark
@@ -112,32 +117,46 @@ state on the side? And what is the shape of prediction — a scalar function
 applied row by row, or a mapping from relations to relations? Existing
 systems answer these questions implicitly, each making different trade-offs
 shaped by its computational objectives — model objects here, procedural
-interfaces there, host-language APIs elsewhere. But the question "what
-should statistical modeling look like *as SQL*?" has rarely been posed as a
-language-design problem in its own right. That is the problem this paper
-takes up. We propose FbSQL, a formula-based statistical modeling DSL that
-treats SQL's design principles as hard constraints — most centrally
-closure: fitting and prediction consume relations and return relations, and
-no model object is ever exposed. Generalized linear models serve as the
-proof of concept; the claim of the paper is the language design, not the
-estimator — calling R's `glm()` from PostgreSQL has long been possible
-[@plr] and is not, by itself, a contribution.
+interfaces there, host-language APIs elsewhere. Those answers carry a cost
+that is easy to state in the relational model's own terms: the moment the
+fitted model is not a relation, closure breaks at the model boundary, and
+what composability normally buys is lost exactly where analysis needs it.
+A model that is data can be joined against last year's model to see what
+changed, audited with a `SELECT` to answer what data it was trained on,
+versioned and diffed like any table, and handed to prediction — or to any
+future consumer — with no export step and no registry; a model that is an
+object, a file, or catalog state can be handled only by its own system's
+dedicated functions. Yet the question "what should statistical modeling
+look like *as SQL*?" has rarely been posed as a language-design problem in
+its own right. That is the problem this paper takes up. We propose FbSQL,
+a formula-based statistical modeling DSL that treats SQL's design
+principles as hard constraints — most centrally closure: fitting and
+prediction consume relations and return relations, and no model object is
+ever exposed. The design turns on one question, which we call the
+*Minimum Atomic Relation* question: for a given class of statistical
+models, what is the smallest relation that supports both the
+interpretation of a fitted model and the reconstruction of its
+predictions? Generalized linear models serve as the proof of concept; the
+claim of the paper is the language design, not the estimator — calling
+R's `glm()` from PostgreSQL has long been possible [@plr] and is not, by
+itself, a contribution.
 
-This paper makes four contributions. First, it distills five design
-principles — set orientation, declarativeness, closure, order independence,
-and NULL semantics — into explicit constraints for statistical modeling in
-SQL, and uses them as a lens for reviewing existing systems. Second, it
-specifies FbSQL: a formula-based, closure-preserving DSL whose central
-design decision is the relation representation of fitted models, including
-the *Minimum Atomic Relation* question — what is the smallest relation that
-supports both interpretation and prediction — and a queryable metadata
-design that makes the model relation self-contained. Third, it provides a
-reference implementation as an open-source PostgreSQL extension whose
-numerical behavior is locked to R's `glm()` and `predict.glm()` by a
-conformance suite. Fourth, it demonstrates the design on a running
-example — a customer-churn workflow written entirely in SQL — and evaluates
-it against five open-source SQL-oriented machine learning systems, with all
-comparison material reproducible from a companion repository. The remainder
+This paper makes four contributions. First, it poses the Minimum Atomic
+Relation question and answers it for GLMs: a term-grain coefficient
+relation with repeated model-level columns and a queryable metadata column
+that makes the relation a self-contained model representation. Second, it
+distills five design principles — set orientation, declarativeness,
+closure, order independence, and NULL semantics — into explicit
+constraints for statistical modeling in SQL, and uses them as a lens for
+reviewing existing systems. Third, it provides a reference implementation
+as an open-source PostgreSQL extension whose numerical behavior is locked
+to R's `glm()` and `predict.glm()` by a conformance suite, and whose
+predictor runs without R — direct evidence that the model relation, not
+engine state, carries the model across the language–engine boundary.
+Fourth, it demonstrates the design on a running example — a customer-churn
+workflow written entirely in SQL — and evaluates it against five
+open-source SQL-oriented machine learning systems, with all comparison
+material reproducible from a companion repository. The remainder
 of the paper follows this order: related work, the design principles, the
 language design, the running example, the reference implementation, the
 comparative evaluation, and a discussion of trade-offs and generalization
@@ -409,7 +428,11 @@ data, and existing systems answer independently of SQL's convention — hard
 errors (PostgresML), silently dropped rows (Spark's
 `handleInvalid = "skip"`), default mean imputation (H2O-3 [@h2o]) —
 choices defensible in context, but none following from the semantics of
-the surrounding query language.
+the surrounding query language. Relational theory itself carries a
+long-standing critique of NULL and three-valued logic
+[@date2004introduction; @darwen1995third]; FbSQL takes no side in that
+debate. Its constraint is fidelity to the language as practiced, and NULL
+is part of SQL as practiced.
 
 FbSQL aligns the two traditions where they already agree. At fitting time
 it performs complete-case analysis, exactly matching the `na.omit` default
@@ -455,15 +478,15 @@ proof of concept binds these goals to two functions:
 
 ```sql
 fbsql.fit_glm(
-    relation  text,                    -- SQL string defining the training relation
-    formula   text,                    -- R formula, e.g. 'churn_flag ~ age + gender'
-    family    text DEFAULT 'gaussian'  -- 'gaussian' | 'binomial'
+    relation text,   -- SQL string: training relation
+    formula  text,   -- R formula
+    family   text DEFAULT 'gaussian'
 ) RETURNS SETOF fbsql.glm_fit
 
 fbsql.predict_glm(
-    relation      text,                -- SQL string defining the relation to score
-    model         text,                -- SQL string returning a model relation
-    on_new_levels text DEFAULT 'error' -- 'error' | 'na'
+    relation text,   -- SQL string: relation to score
+    model    text,   -- SQL string: a model relation
+    on_new_levels text DEFAULT 'error'  -- | 'na'
 ) RETURNS SETOF record
 ```
 
@@ -482,9 +505,10 @@ Fitting the running example's churn model is a single call, shown here at
 signature level and in full in the *Running Example* section:
 
 ```sql
-fit_glm(relation => $$ SELECT churn_flag, age, gender FROM customer ... $$,
-        formula  => 'churn_flag ~ age + gender',
-        family   => 'binomial')
+fit_glm(
+    relation => $$ SELECT ... FROM customer ... $$,
+    formula  => 'churn_flag ~ age + gender',
+    family   => 'binomial')
 ```
 
 The three arguments divide the specification cleanly. `relation` is a SQL
@@ -597,7 +621,8 @@ structure, and the column types — information that R keeps inside its
 model object. FbSQL stores it in a `metadata` JSONB column, repeated on
 every row like the other model-level columns. For a model
 `y ~ x1 + gender` fitted on a numeric predictor and a three-level factor,
-the value is (exactly as produced by the reference implementation):
+the value is (field for field as produced by the reference
+implementation; reflowed for column width):
 
 ```json
 {
@@ -605,10 +630,13 @@ the value is (exactly as produced by the reference implementation):
   "response": "y",
   "term_labels": ["x1", "gender"],
   "intercept": true,
-  "data_classes": {"y": "numeric", "x1": "numeric", "gender": "factor"},
+  "data_classes": {"y": "numeric",
+                   "x1": "numeric",
+                   "gender": "factor"},
   "xlevels": {"gender": ["F", "M", "Other"]},
   "contrasts": {"gender": "contr.treatment"},
-  "coef_terms": ["(Intercept)", "x1", "genderM", "genderOther"]
+  "coef_terms": ["(Intercept)", "x1",
+                 "genderM", "genderOther"]
 }
 ```
 
@@ -634,9 +662,10 @@ level (the full query appears in the *Running Example* section):
 
 ```sql
 predict_glm(
-    relation => $$ SELECT customer_id, age, gender FROM customer ... $$,
+    relation => $$ SELECT ... FROM customer ... $$,
     model    => $$ SELECT * FROM logit_model $$
-) AS p(customer_id varchar, age integer, gender varchar,
+) AS p(customer_id varchar, age integer,
+       gender varchar,
        churn_flag_predicted double precision)
 ```
 
@@ -648,7 +677,7 @@ table, a view, or a filtered copy. The model is passed as data, not as a
 name resolved against system state: there is no registry, no deployment
 indirection, and no session dependence — scoring is a pure function of the
 two relations. The output is the scoring relation's rows with one appended
-column, `` `<response>_predicted` ``, named from the metadata (here
+column, `<response>_predicted`, named from the metadata (here
 `churn_flag_predicted`, a probability on the response scale). The output
 keeps the granularity of the input — one row in, one row out — and carries
 no row-order guarantee, per the order-independence principle; coefficients
@@ -693,7 +722,7 @@ rebuild the design matrix. For tree ensembles — future `fit_rf()`,
 the split: a model relation whose rows are nodes (tree, node, split
 variable, threshold, leaf value), with ensemble-level columns and metadata
 playing the same roles as here. The interface conventions — named
-arguments, relation-valued model input, `` `<response>_predicted` ``
+arguments, relation-valued model input, `<response>_predicted`
 output, caller-side policies for unseen data — carry over unchanged. The
 *Discussion* section sketches these designs; the point of this section is
 that the language, not the estimator, is the fixed part of FbSQL.
@@ -762,23 +791,25 @@ the boolean response is accepted directly. The result is a table like any
 other, and selecting from it shows the fitted model:
 
 ```sql
-SELECT term, round(estimate::numeric, 4) AS estimate,
-       round(std_error::numeric, 4) AS std_error,
-       family, link, n_obs, n_used, n_dropped
+SELECT term,
+       round(estimate::numeric, 4)  AS estimate,
+       round(std_error::numeric, 4) AS std_error
 FROM logit_model ORDER BY term;
 ```
 ```
-    term     | estimate | std_error |  family  | link  | n_obs | n_used | n_dropped
--------------+----------+-----------+----------+-------+-------+--------+-----------
- (Intercept) | -12.1071 |    7.1895 | binomial | logit |    12 |     12 |         0
- age         |   0.2981 |    0.1669 | binomial | logit |    12 |     12 |         0
- genderM     |  -0.4305 |    2.5525 | binomial | logit |    12 |     12 |         0
- genderOther |  -0.7049 |    2.8735 | binomial | logit |    12 |     12 |         0
+    term     | estimate | std_error
+-------------+----------+-----------
+ (Intercept) | -12.1071 |    7.1895
+ age         |   0.2981 |    0.1669
+ genderM     |  -0.4305 |    2.5525
+ genderOther |  -0.7049 |    2.8735
 ```
 
-One row per term, exactly as R would report it, with the model-level
-columns repeated on each row; the relation also carries the `metadata`
-column of the *Language Design* section, to which we return below.
+One row per term, exactly as R would report it. The model-level columns
+repeat on every row — here `family` = binomial, `link` = logit, and
+`n_obs` = `n_used` = 12 with `n_dropped` = 0 — and the relation also
+carries the `metadata` column of the *Language Design* section, to which
+we return below.
 
 ## Prediction
 
@@ -786,7 +817,9 @@ Scoring the 2026 customers consumes two relations — the data to score and
 the model, both passed as queries — and returns a relation:
 
 ```sql
-SELECT customer_id, round(churn_flag_predicted::numeric, 4) AS churn_flag_predicted
+SELECT customer_id,
+       round(churn_flag_predicted::numeric, 4)
+           AS churn_flag_predicted
 FROM predict_glm(
     relation => $$
         SELECT customer_id, age, gender
@@ -795,7 +828,8 @@ FROM predict_glm(
           AND customer_id <> 'c105'
     $$,
     model => $$ SELECT * FROM logit_model $$
-) AS p(customer_id varchar, age integer, gender varchar,
+) AS p(customer_id varchar, age integer,
+       gender varchar,
        churn_flag_predicted double precision)
 ORDER BY customer_id;
 ```
@@ -822,9 +856,11 @@ never occurred in the training data, and under the default policy scoring
 it stops the query with an explicit error:
 
 ```
-ERROR:  predict_glm: factor 'gender' has new level 'Nonbinary' not seen at
-fit time (known levels: ["F", "M", "Other"]); use on_new_levels => 'na' to
-return NULL for such rows
+ERROR:  predict_glm: factor 'gender' has new
+level 'Nonbinary' not seen at fit time (known
+levels: ["F", "M", "Other"]); use
+on_new_levels => 'na' to return NULL for such
+rows
 ```
 
 Passing `on_new_levels => 'na'` instead keeps all five rows and returns a
@@ -843,7 +879,8 @@ is a query, not a method call. Model-level quantities are one `SELECT`
 away:
 
 ```sql
-SELECT DISTINCT aic, deviance, null_deviance FROM logit_model;
+SELECT DISTINCT aic, deviance, null_deviance
+FROM logit_model;
 ```
 
 The training-time conditions travel with the model in its `metadata`
@@ -865,7 +902,9 @@ year's compares two models term by term, with no export step and no
 model-object API:
 
 ```sql
-SELECT a.term, a.estimate AS estimate_2025, b.estimate AS estimate_2026
+SELECT a.term,
+       a.estimate AS estimate_2025,
+       b.estimate AS estimate_2026
 FROM logit_model AS a
 JOIN logit_model_2026 AS b USING (term);
 ```
@@ -1150,6 +1189,30 @@ fitted model is a host-language `PipelineModel` object, with
 `transform()` providing relation-in / relation-out shape at the DataFrame
 level rather than in SQL.
 
+## Overhead
+
+A language layer should not cost more than it returns, so the evaluation
+closes by bounding the price of the interface — a bound, not a
+performance claim; statistical computing performance remains outside
+FbSQL's scope. Table 3 reports median wall-clock times on the reference
+environment for a deterministic synthetic churn dataset (companion
+repository, script 13). Two observations follow. Fitting through
+`fit_glm()` adds a roughly constant two hundred milliseconds to a plain R
+`glm()` call at small sizes — the cost of invoking the embedded
+interpreter and transferring the relation — and tracks the estimator
+thereafter, staying under half a second end to end at $10^5$ rows.
+Prediction, which runs entirely in SQL with no R, scores $10^5$ rows in
+under a tenth of a second and scales linearly. At the analyst-scale
+relations the proof of concept targets, the interface costs a fraction of
+a second; large-scale estimation remains a matter for replacement engines
+(see the *Discussion* section).
+
+```{r tab3, echo=FALSE, results='asis'}
+tab <- readLines(if (knitr::is_latex_output())
+    "tables/overhead_benchmark.tex" else "tables/overhead_benchmark.md")
+cat(tab[!grepl("^%", tab)], sep = "\n")
+```
+
 ## Summary
 
 The evaluation establishes three observations. First, *R compatibility*:
@@ -1187,8 +1250,8 @@ The seventeen-column model relation mixes two granularities: term-level
 columns that vary by row, and model-level columns — `aic`, the
 complete-case counters, `family`, and ultimately `metadata` — that repeat
 the same value on every row. By the normalization discipline of the
-relational tradition [@codd1970relational], this is the textbook case for
-decomposition: the model-level columns depend on the model, not the term,
+relational tradition [@codd1972normalization], this is the textbook case
+for decomposition: the model-level columns depend on the model, not the term,
 and a normalized design would return a coefficient relation, a model
 summary relation, and perhaps a metadata relation. We chose not to, and
 the reason is closure. A SQL function returns one value; the moment
@@ -1233,9 +1296,17 @@ the contract queryable from SQL itself.
 
 ## SQL standard versus practical SQL
 
-FbSQL's normative call style, `fit_glm(relation => ..., formula => ...)`,
-uses named notation that PostgreSQL and Oracle provide but the ISO SQL
-standard does not. We are deliberately cautious here. On one hand, the
+Relational theory offers a radical answer to SQL's accumulated
+compromises: *The Third Manifesto* [@darwen1995third] judges SQL beyond
+repair and specifies a new relational language, **D**, in which the
+principles this paper cares about hold by construction. FbSQL's wager is
+complementary rather than opposed — that the same principles can be
+honored *inside* SQL as actually deployed, at the price of the explicit
+trade-offs documented in this paper. That wager shapes our position on
+syntax. FbSQL's normative call style,
+`fit_glm(relation => ..., formula => ...)`, uses named notation that
+PostgreSQL and Oracle provide but the ISO SQL standard does not. We are
+deliberately cautious here. On one hand, the
 experience of this paper suggests that named arguments are not cosmetic
 for statistical interfaces: fitting functions accumulate optional
 parameters, and the order-independence principle extends naturally from
@@ -1437,3 +1508,25 @@ development of this work.
      grant numbers (none listed yet), coauthors' institutional
      acknowledgments (Juntendo / Chuo), and any individual reviewers or
      colleagues to be named. -->
+
+# Declarations {.unnumbered}
+
+**Funding** [To be completed at submission.]
+
+**Competing interests** [To be completed at submission.]
+
+**Data availability** All data used in this paper are small synthetic
+datasets included in the public repositories: the running-example table
+ships inside the extension's conformance suite and as `data/customer.csv`
+in the companion repository, and the comparison data is version-controlled
+there as `data/related_work.csv`.
+
+**Code availability** The FbSQL extension and the companion experiment
+repository are open source under the MIT license; see the replication
+material section. [Zenodo DOIs to be added at submission.]
+
+**Authors' contributions** [To be completed at submission.]
+
+<!-- TODO(declarations): complete funding, competing interests, and
+     author-contribution statements with all authors before submission
+     (VLDBJ requires these). -->

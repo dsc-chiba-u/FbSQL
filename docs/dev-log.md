@@ -6,6 +6,81 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-13: VLDB Journal 転針 Phase 0〜6 を一括実施
+
+### Summary(Phase 別)
+
+- **Phase 0(パイプライン)**: 投稿規定を精読(専用2カラム LaTeX
+  テンプレート svjour3 / **25ページ上限** / 番号引用 / abstract 150〜250語 /
+  keywords 4〜6 / single-blind / Declarations 必須)。`make vldb` を新設 —
+  pandoc カスタムテンプレート `paper/vldb/vldbj-template.tex`(svjour3
+  twocolumn、authors/institutes/keywords はテンプレート側、title/abstract
+  は paper.Rmd YAML が単一情報源)。クラス資産は Springer から Docker
+  イメージビルド時に取得(非コミット)。**JSS は完全削除**(render.sh の
+  jss ターゲット、rticles、journal/、README・CLAUDE.md の記述)。
+  2カラム対応: 図は `fig.env="figure*"`、Table 1 はビルド時に `table*`
+  昇格、17列仕様表は longtable 不可のため dual-format チャンク化
+  (`\addtocounter` 補正は不要になり削除)。ハマり2件: テンプレートの
+  **コメント内に `$` 変数を書くと置換されて壊れる** / カスタムテンプレートは
+  natbib を自前でロードする必要(\citep 未定義)+ lmodern 必須(TC フォント)
+- **Phase 1(文献)**: 4件追加(すべて原典検証済み) —
+  codd1972normalization(正規化の原典。Discussion の Codd 1970 誤引用を
+  修正)/ darwen1995third(Third Manifesto)/ date2004introduction /
+  cohen2009madskills(MAD Skills)
+- **Phase 2(Abstract)**: **MAR を「core design question」として中心化** +
+  **言語/エンジン分離(境界を渡るのは model relation というデータのみ)を
+  明文化**(Figure 1 の内容)。236語(150〜250内)。番号引用化に伴い
+  \citet 型2箇所を「Chambers and Hastie [@...]」形式へ
+- **Phase 3(Introduction)**: DB 読者向け再動機付け — 冒頭を「SQL の
+  長寿は関係モデルの設計コミットメント(特に閉包性)にある」から開始
+  (Codd / Date / Darwen)、in-DB analytics の系譜(MAD Skills)、
+  「モデルが relation でなくなった瞬間に閉包性がモデル境界で壊れる」
+  という *DB 的コスト* の段落(join で比較・SELECT で監査・export 不要、
+  の具体ペイン = 「なんで必要?」への先回り回答)、MAR の問いを
+  Introduction で正式に提示。Contributions は MAR を第1項へ繰り上げ
+- **Phase 4(理論接続)**: NULL semantics に「関係理論内部の NULL 批判
+  [Date; Darwen&Date] に与しない — 実践としての SQL への忠実が制約」を
+  追加。Discussion の SQL standard 節に **Third Manifesto を対置**
+  (「D 派は SQL を捨てる。FbSQL の賭けは SQL の内側で原則を守ること」)
+- **Phase 5(体裁)**: Declarations 節を追加(Funding / Competing
+  interests / Data availability / Code availability / Contributions —
+  未確定項目は [To be completed at submission.] + TODO コメント)。
+  全コードブロックを列幅(約56字)に整形(係数表出力は3列に縮約し
+  model-level 値は本文へ、エラーメッセージ再折返し等)。
+  \emergencystretch・\titlerunning 追加。長年潜在していた
+  `` `<response>_predicted` `` の二重バッククォート表示バグも発見・修正
+- **Phase 6(オーバーヘッド)**: experiments に script 13 を新設(別
+  コミット `63ab513`)。実測(中央値): fit_glm 205/229/477 ms vs
+  R glm 7/22/166 ms(n=1e3/1e4/1e5。固定 ~0.2s + データ転送)、
+  predict_glm 9/18/67 ms(線形・R 不使用)。Evaluation に **Overhead
+  小節 + Table 3** を追加(「bound であって性能主張ではない」と明記。
+  表は script 51 生成に追加)
+
+### Changed Files(本体)
+
+- `paper/vldb/vldbj-template.tex` 新規、`paper/render.sh` / `Makefile` /
+  `Dockerfile` VLDB 化、`paper/paper.Rmd`(Phase 1〜6)、
+  `paper/references.bib`(+4件)、`paper/tables/overhead_benchmark.{tex,md}`
+  新規、`paper/README.md` / `CLAUDE.md` / `.gitignore` 同期、
+  `paper/journal/` 削除、`docs/vldb-pivot-plan.md` 状況更新
+
+### Validation
+
+- `make html` / `make vldb` とも成功。**21ページ(上限25に余裕)**、
+  Figure 1〜4(figure* 全幅)・Table 1〜3・Declarations・References
+  (番号引用、未解決/author? ゼロ)を pdftotext + ページ画像で確認。
+  表紙は svjour3 標準形(3著者・所属脚注・Keywords 6個)
+
+### 残 TODO(Phase 7 / 投稿前)
+
+- 全体一貫性レビュー(転針後の全読)→ 共著者レビューへ
+- Declarations の確定(Funding / COI / Contributions)、ORCID、
+  Zenodo DOI、2カラムでの残 Overfull の最終掃除
+
+Commit: `Reframe manuscript for VLDB Journal`(本エントリを含むコミット)。
+
+---
+
 ## 2026-07-13: 0.1.0 リリース作業の確定分 + PGXN 保留の決定
 
 ### Summary

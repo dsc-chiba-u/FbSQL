@@ -30,11 +30,13 @@ $endif$
   \AfterEndEnvironment{Shaded}{\endgroup}
 \fi
 \usepackage[hidelinks]{hyperref}
+% Narrow twocolumn measure: let TeX loosen lines before overflowing.
+\setlength{\emergencystretch}{3em}
 \journalname{The VLDB Journal}
 \begin{document}
 
 \title{$title$}
-%\titlerunning{FbSQL}
+\titlerunning{FbSQL: Formula-based Statistical Modeling in SQL}
 \author{Koki Tsuyuzaki \and Kentaro Sakamaki \and Hiromu Nishiuchi}
 \authorrunning{K. Tsuyuzaki et al.}
 \institute{K. Tsuyuzaki \at
