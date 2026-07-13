@@ -13,3 +13,7 @@ paper/paper_cache/
 
 # PGXN distribution archives (regenerate with pgxn-bundle)
 /fbsql-*.zip
+
+# macOS Finder artifacts
+.DS_Store
+._.DS_Store
