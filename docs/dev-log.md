@@ -39,11 +39,19 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
   2箇所、TODO 整理
 - `docs/dev-log.md`: 本エントリ
 
+### 追記(同日)
+
+- **FbSQL-experiments も v0.1.0 リリース + Zenodo アーカイブ完了**
+  (DOI 10.5281/zenodo.21405819、解決先確認済み)。experiments README に
+  DOI バッジ、論文の Replication material(両 DOI 併記)と Declarations
+  (Code availability)へ反映、TODO コメント解消。make html / vldb
+  再ビルド成功(21ページ、両 DOI 反映)
+
 ### 残 TODO
 
-- FbSQL-experiments の Zenodo アーカイブ(論文投稿時)→ 論文へ DOI 挿入
 - Declarations の確定(Funding / COI / Contributions — 共著者確認)
 - 論文: 共著者レビューの反映、最終投稿パッケージ(Fig1.pdf 命名等)
+- README 全面改修(中断中 — Ubuntu/macOS 検証の途中)
 
 Commit: `Sync release artifacts and Zenodo DOI`(本エントリを含む)。
 

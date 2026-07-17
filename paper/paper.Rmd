@@ -1448,8 +1448,10 @@ number printed in the *Running Example* section is re-verified by
 `make installcheck` — the Docker development environment, and this
 manuscript; its 0.1.0 release is archived at Zenodo under DOI
 [10.5281/zenodo.21404862](https://doi.org/10.5281/zenodo.21404862). The **FbSQL-experiments repository**
-(<https://github.com/dsc-chiba-u/FbSQL-experiments>) holds the comparative
-material: pinned Docker environments for Apache MADlib, PostgresML, and
+(<https://github.com/dsc-chiba-u/FbSQL-experiments>, archived at Zenodo
+under DOI
+[10.5281/zenodo.21405819](https://doi.org/10.5281/zenodo.21405819))
+holds the comparative material: pinned Docker environments for Apache MADlib, PostgresML, and
 Spark MLlib, numbered scripts that reproduce the running example on each
 system, the R-parity comparison, the per-claim sources for the two
 literature-based systems, and the version-controlled comparison data
@@ -1460,9 +1462,6 @@ deviation as a diff. Scripts resolve repository locations through
 environment variables or the sibling-checkout convention, with no
 developer-specific paths.
 
-<!-- TODO(replication): archive FbSQL-experiments at Zenodo at submission
-     time and insert its DOI here (the FbSQL repository is already
-     archived: 10.5281/zenodo.21404862). -->
 
 # Computational details {.unnumbered}
 
@@ -1521,9 +1520,8 @@ there as `data/related_work.csv`.
 
 **Code availability** The FbSQL extension and the companion experiment
 repository are open source under the MIT license; see the replication
-material section. The FbSQL 0.1.0 release is archived at Zenodo (DOI
-10.5281/zenodo.21404862); the companion repository will be archived at
-submission.
+material section. The 0.1.0 releases of both repositories are archived at
+Zenodo (DOIs 10.5281/zenodo.21404862 and 10.5281/zenodo.21405819).
 
 **Authors' contributions** [To be completed at submission.]
 
