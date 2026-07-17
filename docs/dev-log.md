@@ -6,6 +6,57 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-17: README を「最初の GLM まで動く」チュートリアルへ全面改修
+
+### Summary
+
+- **背景**: PGXN 公開後、ユーザーが Docker / macOS (Apple Silicon) /
+  Homebrew PostgreSQL 16 / `pgxn install fbsql` で実インストールした結果、
+  README だけでは初見利用者が詰まる箇所が複数判明。「インストール一覧」
+  ではなく「README だけで最初の GLM まで到達できる」ことを目標に再構成
+- **Installation を4経路に再構成**: Recommended: Docker → PGXN (Linux) →
+  PGXN (macOS) → Build from source。Docker が最も簡単である理由
+  (PostgreSQL + R + PL/R + FbSQL 同梱・バージョン整合済み)を明記
+- **Docker はホスト側 5433 に変更**: 既にローカル PostgreSQL を持つ
+  利用者との 5432 ポート競合を避けるため。接続例も `-p 5433`、同名
+  コンテナは `docker rm -f fbsql` の注記付き
+- **Linux (Ubuntu 24.04 + PG16)**: PL/R の OS レベル先行インストールが
+  必要なことを明記。**標準リポジトリのみ・指示どおりの4パッケージ +
+  `sudo pgxn install fbsql` で完動することをコンテナで実機検証**
+  (追加パッケージ不要だった)
+- **macOS (Apple Silicon)**: ネイティブ動作(ユーザー実機で検証済み)。
+  Homebrew に PL/R が無いためソースビルド手順(USE_PGXS=1)を追加。
+  **PostgreSQL 本体・pg_config・PL/R の major version 一致**の警告
+  ブロックを追加(brew の pgxnclient formula 実在は formulae.brew.sh で
+  確認)
+- **PL/R 依存の説明節を新設**: `CASCADE` は PL/R をダウンロードしない
+  (登録するだけ)/ `extension "plr" is not available` は FbSQL ではなく
+  PL/R 未インストールの意味、を明記
+- **Example を GLM 実行まで拡張**: mtcars 10行の CREATE TABLE + INSERT を
+  README 内に同梱(R 前提なし)→ `fbsql.fit_glm('SELECT mpg, hp, wt FROM
+  mtcars', 'mpg ~ hp + wt', 'gaussian')` → 実測出力((Intercept) 30.5431 /
+  hp −0.0447 / wt −1.4989)と列の説明 → DROP TABLE。続けて
+  `predict_glm()` を実装どおりのシグネチャで短く紹介(フル例は
+  customer churn の running example 節へ誘導)
+- **実機検証**: Docker(5433・fresh pull latest = version 0.1.0)/
+  接続 / CREATE EXTENSION / version / mtcars fit / predict(列定義
+  リスト付き、mpg_predicted 出力確認)/ DROP、および Ubuntu 24.04 の
+  全フロー。macOS はユーザー検証。副次的発見: ローカルに古い latest
+  キャッシュがあると version() が旧値になる(pull し直しで解消)
+
+### Changed Files
+
+- `README.md`: 全面改修
+- `docs/dev-log.md`: 本エントリ
+
+### Next Step
+
+- Declarations の確定(共著者)、共著者レビュー反映
+
+Commit: `Rewrite README as a first-GLM tutorial`(本エントリを含む)。
+
+---
+
 ## 2026-07-17: **GitHub Release v0.1.0 + Zenodo DOI — 0.1.0 リリース完結**
 
 ### Summary
