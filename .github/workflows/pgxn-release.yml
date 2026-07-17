@@ -28,5 +28,14 @@ jobs:
           validate_pgxn_meta META.json
           pgxn-bundle
 
+      # Skip the upload if this version is already on PGXN (e.g. the
+      # version was published via workflow_dispatch before the tag push).
       - name: Release to PGXN
-        run: pgxn-release fbsql-*.zip
+        run: |
+          VERSION=$(grep -oE '"version": *"[^"]+"' META.json \
+                    | head -1 | grep -oE '[0-9][^"]*')
+          if curl -fsI "https://master.pgxn.org/dist/fbsql/$VERSION/" >/dev/null 2>&1; then
+            echo "fbsql $VERSION is already on PGXN; skipping upload."
+          else
+            pgxn-release fbsql-*.zip
+          fi
