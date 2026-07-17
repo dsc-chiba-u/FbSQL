@@ -1,5 +1,7 @@
 # FbSQL
 
+[![PGXN version](https://badge.fury.io/pg/fbsql.svg)](https://badge.fury.io/pg/fbsql)
+
 A Closure-Preserving Formula-based Extension for Statistical Modeling in SQL
 
 FbSQL is a **PostgreSQL extension** — not an R package — that proposes a
