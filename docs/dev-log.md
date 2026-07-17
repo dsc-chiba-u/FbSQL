@@ -6,6 +6,55 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-17: **FbSQL 0.1.0 を PGXN へ正式公開** 🎉
+
+### Summary
+
+- **公開完了**: https://pgxn.org/dist/fbsql/ (version 0.1.0 /
+  released 2026-07-17 / user: koki)。master ミラーにも配布物を確認
+  (`/dist/fbsql/0.1.0/fbsql-0.1.0.zip`, 43KB)
+- 投稿経路: PGXN アカウント開設(リセットトークン失効 →
+  /account/forgotten で再発行 → Basic 認証はニックネームでログイン)→
+  ユーザーが gh secret set で PGXN_USERNAME / PGXN_PASSWORD を設定
+  (値はチャット・履歴・ファイルに残さず)→ **pgxn-release workflow を
+  workflow_dispatch で起動 → Success**(タグ push を使っていないので
+  GitHub Release はまだ作られていない — 指示どおり)
+- 公開前の最終確認: **maintainer を fbrglm と同じ hotmail に復元**
+  (gmail からの差し戻し。指示: Rパッケージと統一、論文 corresponding
+  とは不一致で構わない)。`fbsql.version()` は既に '0.1.0'(07-13 修正済)。
+  validator **OK(warning/error ゼロ)**、installcheck **11/11**
+  (running example 含む)、ZIP 再生成・内容確認(46ファイル)
+- **第三者インストール検証(ライブ)**: 素の postgres:16-bookworm +
+  pgxnclient で **`pgxn install fbsql`(ネットワーク経由)→
+  CREATE EXTENSION fbsql CASCADE → fbsql.version() = 0.1.0 →
+  Running Example 完走(0.0406 / 0.9794 / 0.4280 / NULL)**。
+  README の記述だけで再現可能なことを確認
+- **README 更新**: Installation を公開状態へ —
+  Recommended (Docker) → **PGXN(`pgxn install fbsql`、公開済みとして
+  記載)** → Build from source
+- **論文**: Software availability の "planned" は指示どおり未変更。
+  TODO コメントを「PGXN は 2026-07-17 公開済み。GitHub Release /
+  Zenodo と同時に一括で released 表現へ反映」と整理
+
+### Changed Files
+
+- `META.json`: maintainer 復元(コミット `9f69ed7`)
+- `README.md`: Installation の公開状態化
+- `paper/paper.Rmd`: TODO コメント整理のみ
+- `docs/dev-log.md`: 本エントリ
+
+### 残 TODO
+
+- **GitHub Release v0.1.0**(タグ push で Docker v0.1.0 タグも発行)—
+  ユーザーの指示待ち
+- Release 後: 論文 Software availability の released 化、Zenodo DOI
+  (両リポジトリ)、Declarations の確定
+- 論文は共著者レビュー中(paper-vldb.pdf 21ページ)
+
+Commit: `Publish FbSQL on PGXN`(本エントリを含むコミット)。
+
+---
+
 ## 2026-07-13: Phase 7 — 転針後の全体一貫性レビューと投稿候補版の確定
 
 ### Summary

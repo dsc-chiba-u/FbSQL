@@ -65,7 +65,23 @@ scripts/docker-installcheck.sh   # run the full test suite inside it
 The test suite executes the running example below verbatim, so a green
 `docker-installcheck.sh` also reproduces the paper's workflow end to end.
 
-### Alternative (Build from source)
+### PGXN
+
+FbSQL is published on [PGXN](https://pgxn.org/dist/fbsql/), the PostgreSQL
+Extension Network. On a host with PostgreSQL (16), PL/R available, and the
+[pgxn client](https://pgxn.github.io/pgxnclient/):
+
+```bash
+pgxn install fbsql
+```
+
+```sql
+CREATE EXTENSION fbsql CASCADE;
+
+SELECT fbsql.version();
+```
+
+### Build from source
 
 Requirements: PostgreSQL (developed and tested against 16) with the
 [PL/R](https://github.com/postgres-plr/plr) extension available, which in
@@ -84,20 +100,6 @@ CREATE EXTENSION fbsql CASCADE;  -- CASCADE also installs the required plr
 
 PL/R is an untrusted language, so creating the extension requires superuser;
 grant `EXECUTE` on the `fbsql` functions to regular users as needed.
-
-### Future (PGXN)
-
-PGXN publication is planned; the release metadata already lives in
-`META.json` and the change history in `Changes`. Once released,
-installation will become:
-
-```bash
-pgxn install fbsql
-```
-
-```sql
-CREATE EXTENSION fbsql;
-```
 
 ## Running example: customer churn
 
