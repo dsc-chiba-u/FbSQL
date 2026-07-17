@@ -6,6 +6,49 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-17: **GitHub Release v0.1.0 + Zenodo DOI — 0.1.0 リリース完結**
+
+### Summary
+
+- **GitHub Release v0.1.0 作成**:
+  https://github.com/dsc-chiba-u/FbSQL/releases/tag/v0.1.0
+  (タイトル "FbSQL 0.1.0"。ノート: DSL / fit_glm / predict_glm /
+  relation-in relation-out / Running Example / Docker(GHCR+Hub)/
+  PGXN / companion repo / Zenodo DOI)
+- タグ push 前に **pgxn-release を冪等化**(公開済みバージョンは
+  master ミラー確認でスキップ)— タグ起動の run は 32秒で success
+  (二重アップロードなし)
+- **Docker v0.1.0 タグ発行を確認**: `ghcr.io/dsc-chiba-u/fbsql:v0.1.0` と
+  `koki/fbsql:v0.1.0` の両方に **linux/amd64 + linux/arm64** manifest
+  (docker-build のタグ run success)
+- **Zenodo DOI 取得(ユーザー)**: [10.5281/zenodo.21404862] =
+  dsc-chiba-u/FbSQL v0.1.0 のアーカイブ(DOI 解決先で確認)。反映先:
+  README(DOI バッジを PGXN バッジ隣に)/ 論文 Replication material
+  (本体 DOI 記載、experiments の Zenodo は投稿時 TODO のまま)/
+  Declarations の Code availability / GitHub Release ノート
+- **論文 Software availability を released 状態へ同期**(TODO の予定
+  どおり Release と同時に一括反映): `pgxn install fbsql`、GHCR/Hub の
+  マルチアーチイメージ、PGXS。make html / vldb 再ビルド成功(21ページ、
+  DOI 2箇所反映)
+
+### Changed Files
+
+- `.github/workflows/pgxn-release.yml`: 冪等化(コミット `7457a6c`)
+- `README.md`: PGXN バッジ(`b952d79`)+ Zenodo DOI バッジ
+- `paper/paper.Rmd`: Software availability released 化、Zenodo DOI
+  2箇所、TODO 整理
+- `docs/dev-log.md`: 本エントリ
+
+### 残 TODO
+
+- FbSQL-experiments の Zenodo アーカイブ(論文投稿時)→ 論文へ DOI 挿入
+- Declarations の確定(Funding / COI / Contributions — 共著者確認)
+- 論文: 共著者レビューの反映、最終投稿パッケージ(Fig1.pdf 命名等)
+
+Commit: `Sync release artifacts and Zenodo DOI`(本エントリを含む)。
+
+---
+
 ## 2026-07-17: **FbSQL 0.1.0 を PGXN へ正式公開** 🎉
 
 ### Summary

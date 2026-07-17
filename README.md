@@ -1,6 +1,7 @@
 # FbSQL
 
 [![PGXN version](https://badge.fury.io/pg/fbsql.svg)](https://badge.fury.io/pg/fbsql)
+[![DOI](https://zenodo.org/badge/1292894034.svg)](https://doi.org/10.5281/zenodo.21404862)
 
 A Closure-Preserving Formula-based Extension for Statistical Modeling in SQL
 
