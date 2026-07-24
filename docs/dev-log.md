@@ -6,6 +6,45 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-24: Declarations のドラフト化(fbrglm 情報の再利用可否調査)
+
+### Summary
+
+- ユーザー質問「../fbrglm/paper/ の情報を Declarations に再利用できないか」
+  への調査: fbrglm は **SoftwareX 原稿へ転換済み**(旧 JSS ドラフトは
+  削除、`446400d` "Pivot manuscript from JSS to SoftwareX")。現行原稿・
+  旧ドラフト(git 履歴)とも **Funding / Competing interests /
+  Contributions の記述は皆無**(grep 0件)。再利用可能だったのは
+  Acknowledgments の機関支援文言のみで、それは既に移植済み
+- そこでプレースホルダを**確認可能なドラフト**に置換(共著者は確認する
+  だけ): Funding =「project-specific な外部資金なし(機関支援は
+  Acknowledgments 参照)」(fbrglm が一度も助成金を記載していない前例に
+  基づく)/ Competing interests = 標準の「なし」宣言 / Authors'
+  contributions = リポジトリの実態に基づく CRediT 風ドラフト(K.T. =
+  設計・実装・実験・執筆、K.S.・H.N. = 設計議論・review & editing)。
+  3件とも *(Draft — to be confirmed by all authors.)* を可視で付け、
+  確認後にマーカーを消す旨の TODO コメントを更新
+- 備考: fbrglm の SoftwareX 転換は FbSQL 論文にも関係しうる
+  (fbrglm 引用は現状 CRAN パッケージとしての引用なので影響なし)
+
+### Changed Files
+
+- `paper/paper.Rmd`: Declarations 3項のドラフト化のみ
+- `docs/dev-log.md`: 本エントリ
+
+### Validation
+
+- make html / vldb 成功(21ページ、Draft マーカー3件が PDF に表示)
+
+### Next Step
+
+- 共著者レビュー(paper-vldb.pdf)で Declarations ドラフトの確認・修正を
+  依頼 → マーカー削除で投稿準備完了
+
+Commit: `Draft declarations for coauthor confirmation`(本エントリを含む)。
+
+---
+
 ## 2026-07-17: README を「最初の GLM まで動く」チュートリアルへ全面改修
 
 ### Summary

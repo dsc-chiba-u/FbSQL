@@ -1508,9 +1508,13 @@ development of this work.
 
 # Declarations {.unnumbered}
 
-**Funding** [To be completed at submission.]
+**Funding** No project-specific external funding was received for this
+work; institutional support is acknowledged above. *(Draft — to be
+confirmed by all authors.)*
 
-**Competing interests** [To be completed at submission.]
+**Competing interests** The authors declare that they have no competing
+interests relevant to the content of this article. *(Draft — to be
+confirmed by all authors.)*
 
 **Data availability** All data used in this paper are small synthetic
 datasets included in the public repositories: the running-example table
@@ -1523,8 +1527,14 @@ repository are open source under the MIT license; see the replication
 material section. The 0.1.0 releases of both repositories are archived at
 Zenodo (DOIs 10.5281/zenodo.21404862 and 10.5281/zenodo.21405819).
 
-**Authors' contributions** [To be completed at submission.]
+**Authors' contributions** K.T. designed the language, implemented the
+extension and the companion experiments, and drafted the manuscript;
+K.S. and H.N. contributed to the design discussions and to reviewing and
+editing the manuscript. All authors read and approved the final
+manuscript. *(Draft — to be confirmed by all authors.)*
 
-<!-- TODO(declarations): complete funding, competing interests, and
-     author-contribution statements with all authors before submission
-     (VLDBJ requires these). -->
+<!-- TODO(declarations): the three statements above are drafts modeled on
+     the fbrglm precedent (no grants were ever listed there) and on the
+     repository record of contributions. Have every author confirm or
+     amend them, then delete the "(Draft ...)" markers before
+     submission. -->
