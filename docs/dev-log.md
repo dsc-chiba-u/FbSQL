@@ -6,6 +6,34 @@ ChatGPT に進捗を共有するための要約ログ。最新の作業を一番
 
 ---
 
+## 2026-07-24: Declarations 確定(著者提供の正式文言)
+
+### Summary
+
+- 著者から正式な Declarations を受領し、ドラフト3件を確定文に置換:
+  **Funding** = JSPS KAKENHI(23K11312 / 24K02011 / 24K21269 / 23K23933)+
+  JST A-STEP(JPMJTR25UJ)+ JST PRESTO(JPMJPR1945)、いずれも K.T. への
+  支援。**Conflict of interest** = 定型「Authors declare that they have
+  no competing interests.」(見出しも Competing interests → Conflict of
+  interest に変更)。**Authors' contributions** = H.N. がアイデアを発案、
+  K.T. がソフトウェアを実装、K.S. が実データでの検証系を立案、全著者が
+  最終原稿を確認
+- Draft マーカー3件と declarations TODO コメントを撤去(PDF 上の残存 0 を
+  確認)。Acknowledgments の TODO も「資金は Declarations に記載済み。
+  残りは任意項目(共著者側機関への謝辞・個人名)」に整理
+- make html / vldb 成功(21ページ、KAKENHI / PRESTO の記載反映)。
+  **これで投稿ブロッカーとなる TODO はゼロ** — 残るは共著者の原稿レビュー
+  と、最終投稿パッケージ整形(Fig1.pdf 命名等)のみ
+
+### Changed Files
+
+- `paper/paper.Rmd`: Declarations 確定のみ
+- `docs/dev-log.md`: 本エントリ
+
+Commit: `Fill declarations with confirmed statements`(本エントリを含む)。
+
+---
+
 ## 2026-07-24: Declarations のドラフト化(fbrglm 情報の再利用可否調査)
 
 ### Summary

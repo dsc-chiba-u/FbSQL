@@ -1501,20 +1501,18 @@ and the RIKEN TRIP Headquarters Advanced General Intelligence for Science
 (AGIS) Program for hosting the Omics AI Research Team during the
 development of this work.
 
-<!-- TODO(acknowledgments): confirm before submission — funding sources /
-     grant numbers (none listed yet), coauthors' institutional
-     acknowledgments (Juntendo / Chuo), and any individual reviewers or
-     colleagues to be named. -->
+<!-- Funding is stated in the Declarations section. Optional before
+     submission: coauthors' institutional acknowledgments (Juntendo /
+     Chuo) and any individuals to be thanked by name. -->
 
 # Declarations {.unnumbered}
 
-**Funding** No project-specific external funding was received for this
-work; institutional support is acknowledged above. *(Draft — to be
-confirmed by all authors.)*
+**Funding** This work was supported by JSPS KAKENHI (grant numbers
+23K11312, 24K02011, 24K21269, and 23K23933), JST A-STEP (grant number
+JPMJTR25UJ), and JST PRESTO (grant number JPMJPR1945) to K.T.
 
-**Competing interests** The authors declare that they have no competing
-interests relevant to the content of this article. *(Draft — to be
-confirmed by all authors.)*
+**Conflict of interest** Authors declare that they have no competing
+interests.
 
 **Data availability** All data used in this paper are small synthetic
 datasets included in the public repositories: the running-example table
@@ -1527,14 +1525,6 @@ repository are open source under the MIT license; see the replication
 material section. The 0.1.0 releases of both repositories are archived at
 Zenodo (DOIs 10.5281/zenodo.21404862 and 10.5281/zenodo.21405819).
 
-**Authors' contributions** K.T. designed the language, implemented the
-extension and the companion experiments, and drafted the manuscript;
-K.S. and H.N. contributed to the design discussions and to reviewing and
-editing the manuscript. All authors read and approved the final
-manuscript. *(Draft — to be confirmed by all authors.)*
-
-<!-- TODO(declarations): the three statements above are drafts modeled on
-     the fbrglm precedent (no grants were ever listed there) and on the
-     repository record of contributions. Have every author confirm or
-     amend them, then delete the "(Draft ...)" markers before
-     submission. -->
+**Authors' contributions** H.N. conceived the idea; K.T. implemented the
+software; K.S. designed the validation scheme on real data. All authors
+reviewed the final manuscript.
